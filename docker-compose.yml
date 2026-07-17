@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: visitalo
+      POSTGRES_USER: visitalo
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes: ["./data/pg:/var/lib/postgresql/data"]
+    # 5433 en el host: el 5432 nativo de Windows ya está ocupado por un
+    # PostgreSQL local (servicio "postgresql-x64-18"). En el VPS de
+    # producción, donde no hay ese conflicto, se puede volver a 5432:5432 —
+    # ahí además restringir por firewall a las IPs salientes de Vercel.
+    ports: ["5433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U visitalo -d visitalo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+    volumes: ["./data/minio:/data"]
+    ports: ["9000:9000", "9001:9001"]
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    ports: ["8081:8080"] # proteger detrás de auth básica o VPN en el VPS
+
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "while true; do pg_dump -h db -U visitalo visitalo | gzip > /backups/visitalo-$$(date +%F).sql.gz; find /backups -mtime +14 -delete; sleep 86400; done",
+      ]
+    environment:
+      PGPASSWORD: "${DB_PASSWORD}"
+    volumes: ["./backups:/backups"]
+    depends_on:
+      db:
+        condition: service_healthy
