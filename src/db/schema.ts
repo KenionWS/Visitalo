@@ -54,7 +54,7 @@ export const searches = pgTable("searches", {
   hasPreapproval: boolean("has_preapproval"),
   preapprovalBank: text("preapproval_bank"),
   timeline: text("timeline"),
-  mustHaves: jsonb("must_haves").$type<Record<string, unknown>>(),
+  mustHaves: jsonb("must_haves").$type<string[]>().notNull().default([]),
   notes: text("notes"),
   shortlistToken: text("shortlist_token").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

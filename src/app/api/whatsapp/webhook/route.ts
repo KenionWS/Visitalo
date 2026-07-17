@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { waMessages } from "@/db/schema";
+import { agencies, waMessages } from "@/db/schema";
 import { enqueueJob } from "@/lib/jobs";
 
 /**
@@ -86,10 +87,22 @@ export async function POST(req: NextRequest) {
         if (!inserted) continue; // ya lo habíamos procesado (reintento de Meta)
 
         if (message.type === "text" && message.text?.body) {
-          await enqueueJob("whatsapp.echo_reply", {
-            phone: message.from,
-            text: `Recibimos tu mensaje: "${message.text.body}" (eco de prueba — Fase 1)`,
-          });
+          const [agency] = await db
+            .select({ id: agencies.id })
+            .from(agencies)
+            .where(eq(agencies.phone, message.from))
+            .limit(1);
+
+          if (agency) {
+            // El flujo de inmobiliarias (recepción/normalización de propuestas)
+            // se implementa en la Fase 3 — por ahora solo logueamos.
+            console.log(`[whatsapp webhook] mensaje de inmobiliaria ${message.from}, sin manejar todavía`);
+          } else {
+            await enqueueJob("conversation.buyer_message", {
+              phone: message.from,
+              text: message.text.body,
+            });
+          }
         }
       }
 

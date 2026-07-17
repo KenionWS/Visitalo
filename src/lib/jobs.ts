@@ -1,22 +1,20 @@
 import { sql, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { jobs } from "@/db/schema";
-import { sendText } from "./whatsapp";
+import { handleBuyerMessage } from "./conversation";
 
 const MAX_ATTEMPTS = 5;
 
 type JobHandler = (payload: Record<string, unknown>) => Promise<void>;
 
 /**
- * Handlers registrados por tipo de job. Fase 1 solo necesita el eco de
- * prueba del webhook; las fases siguientes agregan acá los handlers de
- * calificación, normalización, relay, etc.
+ * Handlers registrados por tipo de job. Las fases siguientes agregan acá los
+ * handlers de normalización de propuestas, relay, etc.
  */
 const handlers: Record<string, JobHandler> = {
-  "whatsapp.echo_reply": async (payload) => {
+  "conversation.buyer_message": async (payload) => {
     const { phone, text } = payload as { phone: string; text: string };
-    const result = await sendText(phone, text);
-    if (!result.ok) throw new Error(result.error);
+    await handleBuyerMessage(phone, text);
   },
 };
 

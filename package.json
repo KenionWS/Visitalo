@@ -10,14 +10,17 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "jobs:run": "tsx src/scripts/run-jobs.ts"
+    "jobs:run": "tsx src/scripts/run-jobs.ts",
+    "seed:shortlist": "tsx src/scripts/seed-shortlist.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.1",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.10",
     "postgres": "^3.4.9",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
