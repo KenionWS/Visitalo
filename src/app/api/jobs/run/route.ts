@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processJobs } from "@/lib/jobs";
+import "@/lib/job-handlers";
+import { processJobs } from "@/lib/queue";
 
 /**
  * Disparado por un scheduler externo (Vercel Cron o Upstash QStash) o a mano

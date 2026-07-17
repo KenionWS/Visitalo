@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { buyers, conversations, searches } from "@/db/schema";
 import { extractSearchFields, type SearchFields } from "./llm";
 import { sendText } from "./whatsapp";
+import { normalizeWords } from "./text";
+import { enqueueJob } from "./queue";
 
 type ConversationContext = {
   searchId?: string;
@@ -30,17 +32,6 @@ const CONFIRM_WORDS = new Set([
 const REJECT_WORDS = new Set(["no", "nel", "incorrecto", "cambiar", "corregir"]);
 
 const MAX_QUALIFYING_QUESTIONS = 4;
-
-function normalize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // sin acentos, para matchear "si"/"si" parejo
-    .replace(/[^\w\s]/g, "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-}
 
 async function getOrCreateBuyer(phone: string) {
   const [existing] = await db.select().from(buyers).where(eq(buyers.phone, phone)).limit(1);
@@ -230,7 +221,7 @@ async function handleConfirming(
   phone: string,
   text: string
 ) {
-  const words = new Set(normalize(text));
+  const words = new Set(normalizeWords(text));
   const hasConfirm = [...words].some((w) => CONFIRM_WORDS.has(w));
   const hasReject = [...words].some((w) => REJECT_WORDS.has(w));
 
@@ -245,6 +236,7 @@ async function handleConfirming(
       phone,
       `Listo, tu búsqueda ya está activa. Vamos a avisarte apenas tengamos propuestas.\n\nMirá tu shortlist acá: ${shortlistUrl(activated.shortlistToken)}`
     );
+    await enqueueJob("distribution.dispatch", { searchId: activated.id });
     return;
   }
 
@@ -260,6 +252,20 @@ async function handleActive(search: SearchRow, phone: string) {
   await sendText(
     phone,
     `Tu búsqueda ya está activa. Mirá las propuestas y gestioná todo desde acá: ${shortlistUrl(search.shortlistToken)}`
+  );
+}
+
+/** Avisa al comprador que tiene una propuesta nueva publicada en su shortlist. */
+export async function notifyBuyerOfNewProposal(searchId: string): Promise<void> {
+  const search = await getSearchById(searchId);
+  if (!search) return;
+
+  const [buyer] = await db.select().from(buyers).where(eq(buyers.id, search.buyerId)).limit(1);
+  if (!buyer) return;
+
+  await sendText(
+    buyer.phone,
+    `Tenés una propuesta nueva para tu búsqueda. Mirala acá: ${shortlistUrl(search.shortlistToken)}`
   );
 }
 

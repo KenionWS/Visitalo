@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, waMessages } from "@/db/schema";
-import { enqueueJob } from "@/lib/jobs";
+import { enqueueJob } from "@/lib/queue";
 
 /**
  * Verificación del webhook (handshake que pide Meta al configurar la
@@ -94,9 +94,10 @@ export async function POST(req: NextRequest) {
             .limit(1);
 
           if (agency) {
-            // El flujo de inmobiliarias (recepción/normalización de propuestas)
-            // se implementa en la Fase 3 — por ahora solo logueamos.
-            console.log(`[whatsapp webhook] mensaje de inmobiliaria ${message.from}, sin manejar todavía`);
+            await enqueueJob("conversation.agency_message", {
+              phone: message.from,
+              text: message.text.body,
+            });
           } else {
             await enqueueJob("conversation.buyer_message", {
               phone: message.from,

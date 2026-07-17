@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { buildSearchExtractionSystemPrompt } from "../../prompts/search-extraction";
+import { buildProposalNormalizationSystemPrompt } from "../../prompts/proposal-normalization";
 
 const MODEL = "claude-opus-4-8";
 
@@ -76,6 +77,52 @@ export async function extractSearchFields(
     system: buildSearchExtractionSystemPrompt(knownContext),
     messages: [{ role: "user", content: message }],
     output_config: { format: zodOutputFormat(SearchFieldsSchema) },
+  });
+
+  return response.parsed_output;
+}
+
+export const ProposalFieldsSchema = z.object({
+  price_usd: z.number().int().nullable().describe("Precio en dólares (USD)"),
+  area_m2: z.number().int().nullable().describe("Superficie en m²"),
+  rooms: z.number().int().nullable().describe("Cantidad de ambientes"),
+  zone_label: z
+    .string()
+    .nullable()
+    .describe("Ubicación aproximada (barrio/sub-zona). Nunca calle ni altura exacta."),
+  attributes: z
+    .array(z.string())
+    .nullable()
+    .describe("Lista de atributos mencionados explícitamente, en snake_case (balcon, cochera, apto_credito, etc.)"),
+  description: z
+    .string()
+    .nullable()
+    .describe("Descripción redactada de nuevo por vos, sin datos de contacto ni dirección exacta"),
+});
+
+export type ProposalFields = z.infer<typeof ProposalFieldsSchema>;
+
+/**
+ * Normaliza el mensaje de una inmobiliaria en una ficha de propiedad
+ * estructurada, aplicando el filtro de PII en la misma pasada. Devuelve
+ * null si no hay ANTHROPIC_API_KEY configurada o si el modelo no pudo
+ * producir una salida válida.
+ */
+export async function normalizeProposal(
+  message: string,
+  context: { agencyZones: string[]; searchZones: string[] }
+): Promise<ProposalFields | null> {
+  if (!isConfigured()) {
+    console.warn("[llm] ANTHROPIC_API_KEY no configurada. No se puede normalizar la propuesta.");
+    return null;
+  }
+
+  const response = await client().messages.parse({
+    model: MODEL,
+    max_tokens: 1024,
+    system: buildProposalNormalizationSystemPrompt(context),
+    messages: [{ role: "user", content: message }],
+    output_config: { format: zodOutputFormat(ProposalFieldsSchema) },
   });
 
   return response.parsed_output;

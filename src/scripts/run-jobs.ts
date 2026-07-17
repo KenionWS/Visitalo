@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { processJobs } from "@/lib/jobs";
+import "@/lib/job-handlers";
+import { processJobs } from "@/lib/queue";
 
 processJobs()
   .then((results) => {

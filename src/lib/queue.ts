@@ -1,22 +1,22 @@
 import { sql, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { jobs } from "@/db/schema";
-import { handleBuyerMessage } from "./conversation";
 
 const MAX_ATTEMPTS = 5;
 
 type JobHandler = (payload: Record<string, unknown>) => Promise<void>;
 
 /**
- * Handlers registrados por tipo de job. Las fases siguientes agregan acá los
- * handlers de normalización de propuestas, relay, etc.
+ * Registro de handlers por tipo de job, poblado por src/lib/job-handlers.ts.
+ * Vive separado de los handlers para que módulos de dominio (conversation,
+ * distribution, etc.) puedan encolar jobs sin crear un import circular con
+ * el archivo que los registra.
  */
-const handlers: Record<string, JobHandler> = {
-  "conversation.buyer_message": async (payload) => {
-    const { phone, text } = payload as { phone: string; text: string };
-    await handleBuyerMessage(phone, text);
-  },
-};
+const handlers: Record<string, JobHandler> = {};
+
+export function registerJobHandler(type: string, handler: JobHandler): void {
+  handlers[type] = handler;
+}
 
 export async function enqueueJob(
   type: string,
