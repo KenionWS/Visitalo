@@ -10,14 +10,17 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+  // .trim() acá también: es común que una variable de entorno pegada en el
+  // dashboard de Vercel termine con un espacio o salto de línea invisible,
+  // lo que rompería la comparación exacta sin que se note por qué.
+  const adminEmail = process.env.ADMIN_EMAIL?.trim();
+  const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH?.trim();
 
   if (!adminEmail || !adminPasswordHash) {
     return { error: "ADMIN_EMAIL / ADMIN_PASSWORD_HASH no están configurados en el servidor." };
   }
 
-  if (email !== adminEmail) {
+  if (email.toLowerCase() !== adminEmail.toLowerCase()) {
     return { error: "Email o contraseña incorrectos." };
   }
 
