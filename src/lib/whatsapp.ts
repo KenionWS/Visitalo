@@ -7,6 +7,9 @@
  * sistema (webhook, jobs) se puede probar en local sin cuenta de Meta.
  */
 
+import { db } from "@/db";
+import { waMessages } from "@/db/schema";
+
 const GRAPH_API_VERSION = process.env.WHATSAPP_API_VERSION ?? "v21.0";
 
 /**
@@ -60,10 +63,33 @@ async function callGraphApi(body: Record<string, unknown>): Promise<SendResult> 
     return { ok: false, error: `Graph API respondió ${res.status}`, raw: json };
   }
 
+  const wamid = json?.messages?.[0]?.id ?? null;
+
+  // Registro de auditoría de lo que realmente se mandó — antes solo
+  // logueábamos entrantes y los status callbacks de Meta, nunca el
+  // contenido saliente real, lo que hacía imposible diferenciar "no se
+  // mandó" de "se mandó pero no llegó".
+  if (wamid) {
+    try {
+      await db
+        .insert(waMessages)
+        .values({
+          wamid,
+          phone: String(body.to),
+          direction: "out",
+          type: String(body.type),
+          payload: { sent: body, response: json },
+        })
+        .onConflictDoNothing({ target: waMessages.wamid });
+    } catch (err) {
+      console.error("[whatsapp] no se pudo registrar el mensaje saliente:", err);
+    }
+  }
+
   return {
     ok: true,
     simulated: false,
-    wamid: json?.messages?.[0]?.id ?? null,
+    wamid,
     raw: json,
   };
 }
