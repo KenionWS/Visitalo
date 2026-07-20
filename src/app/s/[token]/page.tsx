@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { proposalEvents, proposals, searches, visits } from "@/db/schema";
+import { proposalEvents, proposals, relayThreads, searches, visits } from "@/db/schema";
 import { DiscardButton } from "./DiscardButton";
-import { FavoriteButton, RequestVisitButton } from "./ActionButtons";
+import { FavoriteButton, RequestVisitButton, AskQuestionForm } from "./ActionButtons";
 
 export const metadata: Metadata = {
   title: "Tu shortlist — visitalo.",
@@ -67,10 +67,28 @@ export default async function ShortlistPage({
   }
 
   const requestedVisits =
-    proposalIds.length > 0 ? await db.select({ proposalId: visits.proposalId }).from(visits) : [];
-  const visitRequestedByProposal = new Set(
-    requestedVisits.filter((v) => proposalIds.includes(v.proposalId)).map((v) => v.proposalId)
-  );
+    proposalIds.length > 0
+      ? await db
+          .select({ proposalId: visits.proposalId })
+          .from(visits)
+          .where(and(inArray(visits.proposalId, proposalIds), ne(visits.status, "cancelled")))
+      : [];
+  const visitRequestedByProposal = new Set(requestedVisits.map((v) => v.proposalId));
+
+  const answeredQuestions =
+    proposalIds.length > 0
+      ? await db
+          .select()
+          .from(relayThreads)
+          .where(and(inArray(relayThreads.proposalId, proposalIds), eq(relayThreads.status, "answered")))
+          .orderBy(relayThreads.answeredAt)
+      : [];
+  const questionsByProposal = new Map<string, typeof answeredQuestions>();
+  for (const q of answeredQuestions) {
+    const list = questionsByProposal.get(q.proposalId) ?? [];
+    list.push(q);
+    questionsByProposal.set(q.proposalId, list);
+  }
 
   const publishedProposals = proposalRows.filter((p) => p.status !== "discarded");
   const discardedProposals = proposalRows.filter((p) => p.status === "discarded");
@@ -179,9 +197,21 @@ export default async function ShortlistPage({
                       </div>
                     )}
 
+                    {(questionsByProposal.get(proposal.id)?.length ?? 0) > 0 && (
+                      <div className="mt-3 space-y-2 border-t border-[var(--tinta)]/10 pt-3">
+                        {questionsByProposal.get(proposal.id)!.map((q) => (
+                          <div key={q.id} className="text-sm">
+                            <p className="text-[var(--tinta)]/60">Vos: {q.question}</p>
+                            <p className="text-[var(--tinta)]">Inmobiliaria: {q.answer}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <FavoriteButton token={token} proposalId={proposal.id} favorited={favorited} />
                       <DiscardButton token={token} proposalId={proposal.id} />
+                      <AskQuestionForm token={token} proposalId={proposal.id} />
                       <RequestVisitButton
                         token={token}
                         proposalId={proposal.id}

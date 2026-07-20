@@ -1,9 +1,10 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { proposalEvents, proposals, searches, visits } from "@/db/schema";
+import { proposalEvents, proposals, relayThreads, searches, visits } from "@/db/schema";
 import { revalidatePath } from "next/cache";
+import { enqueueJob } from "@/lib/queue";
 
 /**
  * Todas las acciones reciben el token de la shortlist y validan que la
@@ -71,9 +72,13 @@ export async function discardProposal(
 export async function requestVisit(token: string, proposalId: string) {
   await assertProposalBelongsToToken(token, proposalId);
 
-  const [existing] = await db.select().from(visits).where(eq(visits.proposalId, proposalId)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(visits)
+    .where(and(eq(visits.proposalId, proposalId), ne(visits.status, "cancelled")))
+    .limit(1);
   if (existing) {
-    // Ya se había pedido — no duplicamos (ej. doble click, reintento de red).
+    // Ya se había pedido y sigue en pie — no duplicamos (ej. doble click, reintento de red).
     return;
   }
 
@@ -83,9 +88,20 @@ export async function requestVisit(token: string, proposalId: string) {
     payload: {},
   });
 
-  // El chequeo de créditos de la agencia y la coordinación por relay se
-  // implementan en la Fase 4 — acá solo dejamos registrada la solicitud.
-  await db.insert(visits).values({ proposalId, status: "requested" });
+  const [visit] = await db.insert(visits).values({ proposalId, status: "requested" }).returning();
+  await enqueueJob("visit.notify_agency", { visitId: visit.id });
+
+  revalidatePath(`/s/${token}`);
+}
+
+export async function askQuestion(token: string, proposalId: string, question: string) {
+  await assertProposalBelongsToToken(token, proposalId);
+
+  const trimmed = question.trim();
+  if (!trimmed) return;
+
+  const [relayThread] = await db.insert(relayThreads).values({ proposalId, question: trimmed }).returning();
+  await enqueueJob("relay.send_question", { relayThreadId: relayThread.id });
 
   revalidatePath(`/s/${token}`);
 }

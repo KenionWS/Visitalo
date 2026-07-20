@@ -1,7 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
-import { toggleFavorite, requestVisit } from "./actions";
+import { useState, useTransition } from "react";
+import { toggleFavorite, requestVisit, askQuestion } from "./actions";
 
 /**
  * Disparan la server action directo desde el cliente (como ya hacía
@@ -59,5 +59,62 @@ export function RequestVisitButton({
     >
       {isPending ? "Enviando..." : done ? "✓ Visita solicitada" : "Pedir visita"}
     </button>
+  );
+}
+
+export function AskQuestionForm({ token, proposalId }: { token: string; proposalId: string }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+  const [sent, setSent] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  if (sent) {
+    return <p className="text-sm text-[var(--verde-profundo)]">✓ Pregunta enviada</p>;
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-full border border-[var(--tinta)]/20 px-4 py-2 text-sm text-[var(--tinta)]/70"
+      >
+        Preguntar
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 flex w-full flex-col gap-2">
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Escribí tu pregunta..."
+        className="w-full rounded-lg border border-[var(--tinta)]/20 bg-white p-2 text-sm"
+        rows={2}
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={isPending || value.trim().length === 0}
+          onClick={() =>
+            startTransition(async () => {
+              await askQuestion(token, proposalId, value.trim());
+              setSent(true);
+            })
+          }
+          className="rounded-full bg-[var(--verde-profundo)] px-4 py-2 text-sm text-white disabled:opacity-60"
+        >
+          {isPending ? "Enviando..." : "Enviar"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-full px-4 py-2 text-sm text-[var(--tinta)]/60"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
   );
 }

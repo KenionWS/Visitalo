@@ -4,34 +4,19 @@ import { db } from "@/db";
 import { buyers, conversations, searches } from "@/db/schema";
 import { extractSearchFields, type SearchFields } from "./llm";
 import { sendText } from "./whatsapp";
-import { normalizeWords } from "./text";
+import { parseYesNo } from "./text";
 import { enqueueJob } from "./queue";
+import { handleBuyerVisitConfirmReply } from "./visits";
 
-type ConversationContext = {
+export type ConversationContext = {
   searchId?: string;
   questionsAsked?: number;
   pendingField?: string;
   pendingQuestion?: string;
+  pendingVisitId?: string;
 };
 
 type SearchRow = typeof searches.$inferSelect;
-
-const CONFIRM_WORDS = new Set([
-  "si",
-  "sí",
-  "dale",
-  "ok",
-  "okay",
-  "okey",
-  "confirmo",
-  "correcto",
-  "listo",
-  "joya",
-  "exacto",
-  "afirmativo",
-]);
-
-const REJECT_WORDS = new Set(["no", "nel", "incorrecto", "cambiar", "corregir"]);
 
 const MAX_QUALIFYING_QUESTIONS = 4;
 
@@ -255,11 +240,7 @@ async function handleConfirming(
   phone: string,
   text: string
 ) {
-  const words = new Set(normalizeWords(text));
-  const hasConfirm = [...words].some((w) => CONFIRM_WORDS.has(w));
-  const hasReject = [...words].some((w) => REJECT_WORDS.has(w));
-
-  if (hasConfirm && !hasReject) {
+  if (parseYesNo(text) === "yes") {
     const [activated] = await db
       .update(searches)
       .set({ status: "active", updatedAt: new Date() })
@@ -311,6 +292,11 @@ export async function handleBuyerMessage(phone: string, text: string): Promise<v
   const buyer = await getOrCreateBuyer(phone);
   const conversation = await getOrCreateConversation(phone);
   const context = (conversation.context ?? {}) as ConversationContext;
+
+  if (context.pendingVisitId) {
+    await handleBuyerVisitConfirmReply(conversation.id, context, phone, text);
+    return;
+  }
 
   let search = context.searchId ? await getSearchById(context.searchId) : null;
   if (!search) {

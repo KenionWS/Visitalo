@@ -5,9 +5,13 @@ import { normalizeProposal } from "./llm";
 import { sendText } from "./whatsapp";
 import { normalizeWords } from "./text";
 import { computeMatchScore } from "./matching";
+import { handleAgencyRelayAnswer } from "./relay";
+import { handleAgencyVisitDateReply } from "./visits";
 
 type AgencyConversationContext = {
   activeSearchId?: string;
+  pendingRelayThreadId?: string;
+  pendingVisitId?: string;
 };
 
 const PASS_WORDS = new Set(["paso", "no", "nada", "gracias"]);
@@ -74,6 +78,16 @@ export async function notifyAgencyOfSearch(agencyId: string, searchId: string): 
 export async function handleAgencyMessage(phone: string, text: string): Promise<void> {
   const conversation = await getOrCreateAgencyConversation(phone);
   const context = (conversation.context ?? {}) as AgencyConversationContext;
+
+  if (context.pendingRelayThreadId) {
+    await handleAgencyRelayAnswer(conversation.id, context, text);
+    return;
+  }
+
+  if (context.pendingVisitId) {
+    await handleAgencyVisitDateReply(conversation.id, context, text);
+    return;
+  }
 
   if (!context.activeSearchId) {
     await sendText(
