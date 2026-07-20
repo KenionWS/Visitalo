@@ -71,6 +71,12 @@ export async function discardProposal(
 export async function requestVisit(token: string, proposalId: string) {
   await assertProposalBelongsToToken(token, proposalId);
 
+  const [existing] = await db.select().from(visits).where(eq(visits.proposalId, proposalId)).limit(1);
+  if (existing) {
+    // Ya se había pedido — no duplicamos (ej. doble click, reintento de red).
+    return;
+  }
+
   await db.insert(proposalEvents).values({
     proposalId,
     type: "visit_request",

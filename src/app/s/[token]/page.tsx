@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { proposalEvents, proposals, searches } from "@/db/schema";
+import { proposalEvents, proposals, searches, visits } from "@/db/schema";
 import { DiscardButton } from "./DiscardButton";
 import { FavoriteButton, RequestVisitButton } from "./ActionButtons";
 
@@ -65,6 +65,12 @@ export default async function ShortlistPage({
     // events vienen ordenados por id de inserción ascendente; nos quedamos con el último.
     favoritedByProposal.set(ev.proposalId, active);
   }
+
+  const requestedVisits =
+    proposalIds.length > 0 ? await db.select({ proposalId: visits.proposalId }).from(visits) : [];
+  const visitRequestedByProposal = new Set(
+    requestedVisits.filter((v) => proposalIds.includes(v.proposalId)).map((v) => v.proposalId)
+  );
 
   const publishedProposals = proposalRows.filter((p) => p.status !== "discarded");
   const discardedProposals = proposalRows.filter((p) => p.status === "discarded");
@@ -171,7 +177,11 @@ export default async function ShortlistPage({
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <FavoriteButton token={token} proposalId={proposal.id} favorited={favorited} />
                       <DiscardButton token={token} proposalId={proposal.id} />
-                      <RequestVisitButton token={token} proposalId={proposal.id} />
+                      <RequestVisitButton
+                        token={token}
+                        proposalId={proposal.id}
+                        alreadyRequested={visitRequestedByProposal.has(proposal.id)}
+                      />
                     </div>
                   </div>
                 </li>

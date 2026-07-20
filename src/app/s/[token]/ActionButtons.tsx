@@ -36,17 +36,28 @@ export function FavoriteButton({
   );
 }
 
-export function RequestVisitButton({ token, proposalId }: { token: string; proposalId: string }) {
+export function RequestVisitButton({
+  token,
+  proposalId,
+  alreadyRequested,
+}: {
+  token: string;
+  proposalId: string;
+  alreadyRequested: boolean;
+}) {
   const [isPending, startTransition] = useTransition();
+  const done = alreadyRequested && !isPending;
 
   return (
     <button
       type="button"
-      disabled={isPending}
+      disabled={isPending || done}
       onClick={() => startTransition(async () => { await requestVisit(token, proposalId); })}
-      className="ml-auto rounded-full bg-[var(--verde)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+      className={`ml-auto rounded-full px-4 py-2 text-sm font-medium disabled:opacity-60 ${
+        done ? "bg-[var(--verde-claro)] text-[var(--verde-profundo)]" : "bg-[var(--verde)] text-white"
+      }`}
     >
-      {isPending ? "Enviando..." : "Pedir visita"}
+      {isPending ? "Enviando..." : done ? "✓ Visita solicitada" : "Pedir visita"}
     </button>
   );
 }
