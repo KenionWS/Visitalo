@@ -44,3 +44,6 @@ next-env.d.ts
 # infra local (docker-compose)
 /data
 /backups
+
+# estado local del harness de Claude Code (no es config de proyecto)
+/.claude
