@@ -29,3 +29,14 @@ h3,
   font-family: var(--font-bricolage), sans-serif;
   font-weight: 800;
 }
+
+/* Sin esto, un tap impreciso en mobile (Safari sobre todo) se interpreta
+   como selección de texto en vez de click, y además hay un delay de ~300ms
+   antes de disparar el click mientras el navegador espera un posible
+   double-tap-to-zoom. */
+button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  min-height: 44px;
+}
