@@ -38,12 +38,17 @@ export async function notifyAgencyOfSearch(agencyId: string, searchId: string): 
   const [search] = await db.select().from(searches).where(eq(searches.id, searchId)).limit(1);
   if (!agency || !search) return;
 
+  const isAlquiler = search.operation === "alquiler";
   const lines = [
-    "Che, tenemos un comprador activo en tu zona:",
+    `Che, tenemos un comprador activo en tu zona que busca ${isAlquiler ? "ALQUILAR" : "COMPRAR"}:`,
     `- Zona: ${search.zones.join(", ") || "sin especificar"}`,
-    `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"}`,
-    `- Forma de pago: ${search.paymentMethod ?? "sin especificar"}`,
+    isAlquiler
+      ? `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"} de alquiler mensual`
+      : `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"}`,
   ];
+  if (!isAlquiler) {
+    lines.push(`- Forma de pago: ${search.paymentMethod ?? "sin especificar"}`);
+  }
   if (search.mustHaves.length > 0) {
     lines.push(`- Busca: ${search.mustHaves.join(", ")}`);
   }
@@ -108,6 +113,7 @@ export async function handleAgencyMessage(phone: string, text: string): Promise<
   const normalized = await normalizeProposal(text, {
     agencyZones: agency.zones,
     searchZones: search.zones,
+    operation: search.operation === "alquiler" ? "alquiler" : "venta",
   });
 
   if (!normalized) {

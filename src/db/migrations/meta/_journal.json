@@ -15,6 +15,13 @@
       "when": 1784301238622,
       "tag": "0001_whole_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784589515148,
+      "tag": "0002_condemned_the_liberteens",
+      "breakpoints": true
     }
   ]
 }

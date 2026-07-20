@@ -81,7 +81,9 @@ export default async function ShortlistPage({
         <p className="font-display text-xl">
           visitalo<span className="text-[var(--ambar)]">.</span>
         </p>
-        <h1 className="mt-3 font-display text-2xl">Tu búsqueda</h1>
+        <h1 className="mt-3 font-display text-2xl">
+          Tu búsqueda {search.operation === "alquiler" ? "de alquiler" : "de compra"}
+        </h1>
         <dl className="mt-3 space-y-1 text-sm text-white/90">
           <div>
             <dt className="inline font-medium">Zona: </dt>
@@ -91,12 +93,15 @@ export default async function ShortlistPage({
             <dt className="inline font-medium">Presupuesto: </dt>
             <dd className="inline">
               hasta USD {search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"}
+              {search.operation === "alquiler" ? " por mes" : ""}
             </dd>
           </div>
-          <div>
-            <dt className="inline font-medium">Forma de pago: </dt>
-            <dd className="inline">{paymentMethodLabel(search.paymentMethod)}</dd>
-          </div>
+          {search.operation !== "alquiler" && (
+            <div>
+              <dt className="inline font-medium">Forma de pago: </dt>
+              <dd className="inline">{paymentMethodLabel(search.paymentMethod)}</dd>
+            </div>
+          )}
         </dl>
       </header>
 

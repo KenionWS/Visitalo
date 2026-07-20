@@ -46,7 +46,7 @@ export const searches = pgTable("searches", {
   id: uuid("id").primaryKey().defaultRandom(),
   buyerId: uuid("buyer_id").notNull().references(() => buyers.id),
   status: text("status").notNull().default("draft"), // draft|active|paused|closed
-  operation: text("operation").notNull().default("venta"),
+  operation: text("operation"), // venta|alquiler — null hasta que el comprador lo confirme
   propertyType: text("property_type"),
   zones: text("zones").array().notNull().default([]),
   budgetUsdMax: integer("budget_usd_max"),

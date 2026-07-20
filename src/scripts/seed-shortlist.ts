@@ -29,6 +29,7 @@ async function main() {
     .values({
       buyerId: buyer.id,
       status: "active",
+      operation: "venta",
       propertyType: "departamento",
       zones: ["Palermo", "Belgrano"],
       budgetUsdMax: 180000,

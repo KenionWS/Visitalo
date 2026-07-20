@@ -77,6 +77,7 @@ async function getSearchById(id: string) {
 
 function shapeKnownFields(search: SearchRow): Partial<SearchFields> {
   return {
+    operation: search.operation === "venta" || search.operation === "alquiler" ? search.operation : null,
     property_type: search.propertyType,
     zones: search.zones.length > 0 ? search.zones : null,
     budget_usd_max: search.budgetUsdMax,
@@ -99,6 +100,7 @@ async function applyExtractedFields(search: SearchRow, extracted: SearchFields):
   const [updated] = await db
     .update(searches)
     .set({
+      operation: extracted.operation ?? search.operation,
       propertyType: extracted.property_type ?? search.propertyType,
       zones: mergeStringArray(search.zones, extracted.zones),
       budgetUsdMax: extracted.budget_usd_max ?? search.budgetUsdMax,
@@ -117,11 +119,19 @@ async function applyExtractedFields(search: SearchRow, extracted: SearchFields):
 type PendingQuestion = { field: string; question: string };
 
 function nextQuestion(search: SearchRow): PendingQuestion | null {
+  if (search.operation !== "venta" && search.operation !== "alquiler") {
+    return { field: "operation", question: "¿Buscás para comprar o para alquilar?" };
+  }
   if (search.zones.length === 0) {
     return { field: "zones", question: "¿En qué zona o barrios de CABA estás buscando?" };
   }
   if (!search.budgetUsdMax) {
-    return { field: "budget_usd_max", question: "¿Cuál es tu presupuesto máximo, en dólares?" };
+    return search.operation === "alquiler"
+      ? { field: "budget_usd_max", question: "¿Cuál es tu presupuesto de alquiler mensual, en dólares?" }
+      : { field: "budget_usd_max", question: "¿Cuál es tu presupuesto máximo, en dólares?" };
+  }
+  if (search.operation === "alquiler") {
+    return null; // en alquiler no preguntamos forma de pago ni crédito hipotecario
   }
   if (!search.paymentMethod) {
     return {
@@ -152,14 +162,20 @@ function paymentMethodLabel(method: string | null): string {
 }
 
 function buildSummary(search: SearchRow): string {
+  const isAlquiler = search.operation === "alquiler";
   const lines = [
     "Che, confirmame que esta es tu búsqueda:",
+    `- Operación: ${isAlquiler ? "Alquiler" : "Compra"}`,
     `- Zona: ${search.zones.join(", ") || "sin especificar"}`,
-    `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"}`,
-    `- Forma de pago: ${paymentMethodLabel(search.paymentMethod)}`,
+    isAlquiler
+      ? `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"} por mes`
+      : `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"}`,
   ];
-  if (search.paymentMethod !== "contado" && search.hasPreapproval) {
-    lines.push(`- Crédito preaprobado: sí (${search.preapprovalBank ?? "banco sin especificar"})`);
+  if (!isAlquiler) {
+    lines.push(`- Forma de pago: ${paymentMethodLabel(search.paymentMethod)}`);
+    if (search.paymentMethod !== "contado" && search.hasPreapproval) {
+      lines.push(`- Crédito preaprobado: sí (${search.preapprovalBank ?? "banco sin especificar"})`);
+    }
   }
   if (search.mustHaves.length > 0) {
     lines.push(`- Imprescindibles: ${search.mustHaves.join(", ")}`);

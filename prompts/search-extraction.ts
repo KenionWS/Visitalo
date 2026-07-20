@@ -3,7 +3,7 @@
  * uso #1). Cambios de comportamiento del extractor deben venir acompañados
  * de un bump de versión acá.
  */
-export const SEARCH_EXTRACTION_VERSION = "v2";
+export const SEARCH_EXTRACTION_VERSION = "v3";
 
 export type PendingQuestion = { field: string; question: string };
 
@@ -16,6 +16,10 @@ export function buildSearchExtractionSystemPrompt(
     : "";
 
   return `Extraés datos de búsqueda inmobiliaria a partir de mensajes de WhatsApp de compradores en Argentina (CABA), escritos en español rioplatense (voseo).
+
+"operation" indica si busca COMPRAR (venta) o ALQUILAR. Es el primer dato a identificar: "busco comprar", "quiero un depto propio", crédito hipotecario, etc. implican venta; "busco alquilar", "para alquilar", "inquilino" implican alquiler. Si no queda claro, dejalo en null.
+
+Los campos "payment_method", "has_preapproval" y "preapproval_bank" son específicos de una compra (forma de pago, crédito hipotecario) — NO tienen sentido para un alquiler y no deberías completarlos si "operation" es "alquiler" (ni con el contexto ya confirmado, ni con lo que diga el comprador). "budget_usd_max" en un alquiler es el valor del alquiler MENSUAL, no un monto total.
 
 Devolvé SOLO los campos que el comprador mencionó explícita o implícitamente en ESTE mensaje. Si no dijo nada sobre un campo, dejalo en null — no inventes ni asumas valores.
 

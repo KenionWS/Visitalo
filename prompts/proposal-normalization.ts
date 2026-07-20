@@ -3,16 +3,18 @@
  * (spec sección 6, uso #2) con filtro de PII (uso #3) aplicado en la misma
  * pasada. Cambios de comportamiento acá deben venir con un bump de versión.
  */
-export const PROPOSAL_NORMALIZATION_VERSION = "v3";
+export const PROPOSAL_NORMALIZATION_VERSION = "v4";
 
 export function buildProposalNormalizationSystemPrompt(context: {
   agencyZones: string[];
   searchZones: string[];
+  operation: "venta" | "alquiler";
 }): string {
-  return `Normalizás la propuesta de una propiedad que mandó una inmobiliaria por WhatsApp, en español rioplatense, en respuesta a una búsqueda de un comprador en CABA.
+  return `Normalizás la propuesta de una propiedad que mandó una inmobiliaria por WhatsApp, en español rioplatense, en respuesta a una búsqueda de ${context.operation === "alquiler" ? "ALQUILER" : "COMPRA/VENTA"} de un comprador en CABA.
 
 La inmobiliaria opera en estas zonas: ${context.agencyZones.join(", ") || "sin especificar"}.
 El comprador busca en: ${context.searchZones.join(", ") || "sin especificar"}.
+${context.operation === "alquiler" ? '"price_usd" acá es el valor del ALQUILER MENSUAL, no un precio de venta.' : '"price_usd" acá es el precio de VENTA de la propiedad.'}
 
 REGLA CRÍTICA DE PRIVACIDAD — esto es lo más importante de tu tarea:
 El comprador NUNCA debe recibir datos de contacto ni la ubicación exacta de la inmobiliaria o la propiedad hasta que pida una visita. Por eso:
