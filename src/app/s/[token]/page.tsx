@@ -3,8 +3,8 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { proposalEvents, proposals, searches } from "@/db/schema";
-import { requestVisit, toggleFavorite } from "./actions";
 import { DiscardButton } from "./DiscardButton";
+import { FavoriteButton, RequestVisitButton } from "./ActionButtons";
 
 export const metadata: Metadata = {
   title: "Tu shortlist — visitalo.",
@@ -169,29 +169,9 @@ export default async function ShortlistPage({
                     )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <form action={toggleFavorite.bind(null, token, proposal.id)}>
-                        <button
-                          type="submit"
-                          className={`rounded-full border px-4 py-2 text-sm ${
-                            favorited
-                              ? "border-[var(--ambar)] bg-[var(--ambar)]/10 text-[var(--tinta)]"
-                              : "border-[var(--tinta)]/20 text-[var(--tinta)]/70"
-                          }`}
-                        >
-                          {favorited ? "★ Favorita" : "☆ Favorita"}
-                        </button>
-                      </form>
-
+                      <FavoriteButton token={token} proposalId={proposal.id} favorited={favorited} />
                       <DiscardButton token={token} proposalId={proposal.id} />
-
-                      <form action={requestVisit.bind(null, token, proposal.id)} className="ml-auto">
-                        <button
-                          type="submit"
-                          className="rounded-full bg-[var(--verde)] px-4 py-2 text-sm font-medium text-white"
-                        >
-                          Pedir visita
-                        </button>
-                      </form>
+                      <RequestVisitButton token={token} proposalId={proposal.id} />
                     </div>
                   </div>
                 </li>
