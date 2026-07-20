@@ -10,6 +10,8 @@ import { enqueueJob } from "./queue";
 type ConversationContext = {
   searchId?: string;
   questionsAsked?: number;
+  pendingField?: string;
+  pendingQuestion?: string;
 };
 
 type SearchRow = typeof searches.$inferSelect;
@@ -112,21 +114,26 @@ async function applyExtractedFields(search: SearchRow, extracted: SearchFields):
   return updated;
 }
 
-function nextQuestion(search: SearchRow): string | null {
+type PendingQuestion = { field: string; question: string };
+
+function nextQuestion(search: SearchRow): PendingQuestion | null {
   if (search.zones.length === 0) {
-    return "¿En qué zona o barrios de CABA estás buscando?";
+    return { field: "zones", question: "¿En qué zona o barrios de CABA estás buscando?" };
   }
   if (!search.budgetUsdMax) {
-    return "¿Cuál es tu presupuesto máximo, en dólares?";
+    return { field: "budget_usd_max", question: "¿Cuál es tu presupuesto máximo, en dólares?" };
   }
   if (!search.paymentMethod) {
-    return "¿Cómo la pensás pagar: contado, crédito o una combinación de las dos?";
+    return {
+      field: "payment_method",
+      question: "¿Cómo la pensás pagar: contado, crédito o una combinación de las dos?",
+    };
   }
   if (search.paymentMethod !== "contado" && search.hasPreapproval === null) {
-    return "¿Ya tenés el crédito preaprobado?";
+    return { field: "has_preapproval", question: "¿Ya tenés el crédito preaprobado?" };
   }
   if (search.paymentMethod !== "contado" && search.hasPreapproval && !search.preapprovalBank) {
-    return "¿Con qué banco?";
+    return { field: "preapproval_bank", question: "¿Con qué banco?" };
   }
   return null;
 }
@@ -184,7 +191,12 @@ async function handleQualifying(
   phone: string,
   text: string
 ) {
-  const extracted = await extractSearchFields(text, shapeKnownFields(search));
+  const pending =
+    context.pendingField && context.pendingQuestion
+      ? { field: context.pendingField, question: context.pendingQuestion }
+      : undefined;
+
+  const extracted = await extractSearchFields(text, shapeKnownFields(search), pending);
 
   if (!extracted) {
     console.error(
@@ -205,12 +217,18 @@ async function handleQualifying(
     await setConversationState(conversationId, "QUALIFYING", {
       ...context,
       questionsAsked: questionsAsked + 1,
+      pendingField: question.field,
+      pendingQuestion: question.question,
     });
-    await sendText(phone, question);
+    await sendText(phone, question.question);
     return;
   }
 
-  await setConversationState(conversationId, "CONFIRMING", context);
+  await setConversationState(conversationId, "CONFIRMING", {
+    ...context,
+    pendingField: undefined,
+    pendingQuestion: undefined,
+  });
   await sendText(phone, buildSummary(updatedSearch));
 }
 

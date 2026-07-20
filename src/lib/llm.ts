@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { buildSearchExtractionSystemPrompt } from "../../prompts/search-extraction";
+import { buildSearchExtractionSystemPrompt, type PendingQuestion } from "../../prompts/search-extraction";
 import { buildProposalNormalizationSystemPrompt } from "../../prompts/proposal-normalization";
 
 const MODEL = "claude-opus-4-8";
@@ -62,7 +62,8 @@ export type SearchFields = z.infer<typeof SearchFieldsSchema>;
  */
 export async function extractSearchFields(
   message: string,
-  knownContext: Partial<SearchFields> = {}
+  knownContext: Partial<SearchFields> = {},
+  pendingQuestion?: PendingQuestion
 ): Promise<SearchFields | null> {
   if (!isConfigured()) {
     console.warn(
@@ -74,7 +75,7 @@ export async function extractSearchFields(
   const response = await client().messages.parse({
     model: MODEL,
     max_tokens: 1024,
-    system: buildSearchExtractionSystemPrompt(knownContext),
+    system: buildSearchExtractionSystemPrompt(knownContext, pendingQuestion),
     messages: [{ role: "user", content: message }],
     output_config: { format: zodOutputFormat(SearchFieldsSchema) },
   });
