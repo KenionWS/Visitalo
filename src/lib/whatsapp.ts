@@ -29,13 +29,18 @@ function toSendablePhone(phone: string): string {
 
 type SendResult =
   | { ok: true; simulated: true; to: string; body: unknown }
-  | { ok: true; simulated: false; wamid: string | null; raw: unknown }
-  | { ok: false; error: string; raw?: unknown };
+  | { ok: true; simulated: false; wamid: string | null; raw: unknown };
 
 function isConfigured(): boolean {
   return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
 }
 
+/**
+ * Tira una excepción real ante cualquier falla de la Graph API — antes
+ * devolvía un objeto {ok:false} que casi ningún llamador chequeaba, así que
+ * los envíos fallidos quedaban invisibles y el job se marcaba "listo" igual.
+ * Ahora un fallo acá hace que el job falle/reintente de verdad.
+ */
 async function callGraphApi(body: Record<string, unknown>): Promise<SendResult> {
   if (!isConfigured()) {
     console.warn(
@@ -60,7 +65,7 @@ async function callGraphApi(body: Record<string, unknown>): Promise<SendResult> 
 
   if (!res.ok) {
     console.error("[whatsapp] Error enviando mensaje:", json);
-    return { ok: false, error: `Graph API respondió ${res.status}`, raw: json };
+    throw new Error(`Graph API respondió ${res.status}: ${JSON.stringify(json?.error ?? json)}`);
   }
 
   const wamid = json?.messages?.[0]?.id ?? null;
