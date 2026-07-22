@@ -149,7 +149,7 @@ function paymentMethodLabel(method: string | null): string {
 function buildSummary(search: SearchRow): string {
   const isAlquiler = search.operation === "alquiler";
   const lines = [
-    "Che, confirmame que esta es tu búsqueda:",
+    "Buenísimo, así quedaría tu búsqueda:",
     `- Operación: ${isAlquiler ? "Alquiler" : "Compra"}`,
     `- Zona: ${search.zones.join(", ") || "sin especificar"}`,
     isAlquiler
@@ -185,12 +185,22 @@ async function setConversationState(
     .where(eq(conversations.id, conversationId));
 }
 
+const GREETING =
+  "¡Hola! ¿Cómo andás? Soy el asistente de Visitalo, te ayudo a encontrar tu próxima propiedad en CABA.";
+
+function hasAnyInfo(search: SearchRow): boolean {
+  return Boolean(
+    search.operation || search.zones.length > 0 || search.propertyType || search.budgetUsdMax
+  );
+}
+
 async function handleQualifying(
   conversationId: string,
   context: ConversationContext,
   search: SearchRow,
   phone: string,
-  text: string
+  text: string,
+  isFirstTurn: boolean
 ) {
   const pending =
     context.pendingField && context.pendingQuestion
@@ -211,6 +221,19 @@ async function handleQualifying(
   }
 
   const updatedSearch = await applyExtractedFields(search, extracted);
+
+  // Si es el primer mensaje y todavía no contó nada (ej. solo saludó), no
+  // arranquemos con la primera pregunta rígida — invitamos a que cuente con
+  // sus palabras qué está buscando, como arrancaría la charla una persona.
+  if (isFirstTurn && !hasAnyInfo(updatedSearch)) {
+    await setConversationState(conversationId, "QUALIFYING", { ...context, questionsAsked: 0 });
+    await sendText(
+      phone,
+      `${GREETING}\n\nContame, ¿qué estás buscando? Podés escribirme como si se lo contaras a una persona: zona, si comprás o alquilás, presupuesto, lo que tengas.`
+    );
+    return;
+  }
+
   const question = nextQuestion(updatedSearch);
   const questionsAsked = context.questionsAsked ?? 0;
 
@@ -221,7 +244,7 @@ async function handleQualifying(
       pendingField: question.field,
       pendingQuestion: question.question,
     });
-    await sendText(phone, question.question);
+    await sendText(phone, isFirstTurn ? `${GREETING}\n\n${question.question}` : question.question);
     return;
   }
 
@@ -308,10 +331,12 @@ export async function handleBuyerMessage(phone: string, text: string): Promise<v
     await setConversationState(conversation.id, conversation.state, context);
   }
 
+  const isFirstTurn = conversation.state === "NEW";
+
   switch (conversation.state) {
     case "NEW":
     case "QUALIFYING":
-      await handleQualifying(conversation.id, context, search, phone, text);
+      await handleQualifying(conversation.id, context, search, phone, text, isFirstTurn);
       break;
     case "CONFIRMING":
       await handleConfirming(conversation.id, context, search, phone, text);

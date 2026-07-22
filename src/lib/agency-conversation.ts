@@ -44,7 +44,7 @@ export async function notifyAgencyOfSearch(agencyId: string, searchId: string): 
 
   const isAlquiler = search.operation === "alquiler";
   const lines = [
-    `Che, tenemos un comprador activo en tu zona que busca ${isAlquiler ? "ALQUILAR" : "COMPRAR"}:`,
+    `Tenemos un comprador activo en tu zona que busca ${isAlquiler ? "ALQUILAR" : "COMPRAR"}:`,
     `- Zona: ${search.zones.join(", ") || "sin especificar"}`,
     isAlquiler
       ? `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"} de alquiler mensual`
