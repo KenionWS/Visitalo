@@ -7,11 +7,8 @@ import { verifySession } from "@/lib/auth/dal";
 import { db } from "@/db";
 import { agencies } from "@/db/schema";
 
-function parseZones(raw: string): string[] {
-  return raw
-    .split(",")
-    .map((z) => z.trim())
-    .filter(Boolean);
+function readZones(formData: FormData): string[] {
+  return formData.getAll("zones").map((z) => String(z));
 }
 
 export async function createAgency(formData: FormData) {
@@ -20,7 +17,7 @@ export async function createAgency(formData: FormData) {
   const phone = String(formData.get("phone") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const contactName = String(formData.get("contactName") ?? "").trim() || null;
-  const zones = parseZones(String(formData.get("zones") ?? ""));
+  const zones = readZones(formData);
 
   if (!phone || !name) {
     throw new Error("Teléfono y nombre son obligatorios");
@@ -37,7 +34,7 @@ export async function updateAgency(agencyId: string, formData: FormData) {
 
   const name = String(formData.get("name") ?? "").trim();
   const contactName = String(formData.get("contactName") ?? "").trim() || null;
-  const zones = parseZones(String(formData.get("zones") ?? ""));
+  const zones = readZones(formData);
   const status = String(formData.get("status") ?? "active");
 
   if (!name) {

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { agencies } from "@/db/schema";
 import { updateAgency } from "../actions";
+import { ZoneCheckboxes } from "../ZoneCheckboxes";
 
 export default async function EditAgencyPage({
   params,
@@ -41,13 +42,8 @@ export default async function EditAgencyPage({
             className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium">Zonas (separadas por coma)</label>
-          <input
-            name="zones"
-            defaultValue={agency.zones.join(", ")}
-            className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
-          />
+        <div className="sm:col-span-2">
+          <ZoneCheckboxes selected={agency.zones} />
         </div>
         <div>
           <label className="block text-sm font-medium">Estado</label>

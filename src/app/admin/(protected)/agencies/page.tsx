@@ -3,6 +3,7 @@ import { desc } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies } from "@/db/schema";
 import { createAgency } from "./actions";
+import { ZoneCheckboxes } from "./ZoneCheckboxes";
 
 export default async function AgenciesPage() {
   const rows = await db.select().from(agencies).orderBy(desc(agencies.createdAt));
@@ -39,13 +40,8 @@ export default async function AgenciesPage() {
             className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium">Zonas (separadas por coma)</label>
-          <input
-            name="zones"
-            placeholder="Palermo, Belgrano"
-            className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
-          />
+        <div className="sm:col-span-2">
+          <ZoneCheckboxes selected={[]} />
         </div>
         <div className="sm:col-span-2">
           <button
