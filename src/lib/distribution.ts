@@ -3,9 +3,18 @@ import { db } from "@/db";
 import { agencies, searches } from "@/db/schema";
 import { enqueueJob } from "./queue";
 
+/**
+ * Comparación por superposición de substring (no exacta): "Caballito" tiene
+ * que matchear con "Caballito Norte"/"Caballito Sur" de una inmobiliaria que
+ * cargó sub-zonas más específicas, y viceversa. Mismo criterio que
+ * matching.ts usa para el % de match en la shortlist.
+ */
 function zoneOverlaps(agencyZones: string[], searchZones: string[]): boolean {
   const normalizedAgencyZones = agencyZones.map((z) => z.toLowerCase().trim());
-  return searchZones.some((z) => normalizedAgencyZones.includes(z.toLowerCase().trim()));
+  const normalizedSearchZones = searchZones.map((z) => z.toLowerCase().trim());
+  return normalizedSearchZones.some((sz) =>
+    normalizedAgencyZones.some((az) => az.includes(sz) || sz.includes(az))
+  );
 }
 
 /**
