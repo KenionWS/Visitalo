@@ -193,10 +193,20 @@ docker compose exec db psql -U visitalo -d visitalo -c "select type, status, att
    confirmá que la propuesta aparece con la zona aproximada, sin ningún dato
    de contacto de la inmobiliaria.
 
-## 9. Procesar jobs en producción (sin QStash todavía)
+## 9. Procesar jobs en producción
 
-En producción esto lo dispara Vercel Cron o Upstash QStash pegándole a
-`/api/jobs/run` con el header `Authorization: Bearer $CRON_SECRET`:
+`/api/jobs/run` (POST, protegido con `Authorization: Bearer $CRON_SECRET`) hay
+que dispararlo periódicamente para que la conversación de WhatsApp responda
+casi en tiempo real. **Vercel Cron no sirve acá**: en el plan Hobby el
+intervalo mínimo es 1 vez por día, insuficiente para un chat en vivo.
+
+En su lugar, `.github/workflows/run-jobs.yml` corre cada 5 minutos vía GitHub
+Actions (gratis sin límite en un repo público) y le pega a
+`https://visitalo.vercel.app/api/jobs/run`. Requiere un secret de repo
+llamado `CRON_SECRET` con el mismo valor que la env var `CRON_SECRET` en
+Vercel — configuralo en GitHub: **Settings → Secrets and variables →
+Actions → New repository secret**. También se puede disparar a mano desde
+la pestaña **Actions** del repo ("Run workflow") o localmente:
 
 ```bash
 curl -X POST http://localhost:3000/api/jobs/run \
