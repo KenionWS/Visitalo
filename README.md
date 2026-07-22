@@ -9,11 +9,14 @@ Este README cubre el setup de **Fase 1** (esqueleto, infra local, webhook con
 dedupe, jobs), **Fase 2** (flujo comprador: máquina de estados, extracción de
 ficha con LLM, shortlist web) y **Fase 3** (admin, alta de inmobiliarias,
 distribución de fichas por zona, ingesta y normalización de propuestas con
-LLM, cola de aprobación). Todavía no hay relay de preguntas, visitas ni
-créditos — eso es Fase 4. Las propuestas de inmobiliarias solo se procesan
-como **texto** por ahora: si llega un audio se le pide a la inmobiliaria que
-lo reescriba (no hay transcripción tipo Whisper todavía), y las fotos no se
-bajan ni se suben a MinIO (la propuesta se normaliza igual, sin fotos).
+LLM, cola de aprobación) y **Fase 4** (rental además de venta, relay de
+preguntas comprador↔inmobiliaria, coordinación de visitas con crédito).
+Las propuestas de inmobiliarias solo se procesan como **texto** por ahora:
+si llega un audio se le pide a la inmobiliaria que lo reescriba (no hay
+transcripción tipo Whisper todavía). Las **fotos sí se procesan**: si vienen
+adjuntas a un mensaje (con o sin caption, siempre que alguna de las imágenes
+del mismo envío traiga el texto de la propuesta) se bajan de la Graph API y
+se suben a Vercel Blob — ver sección "Fotos de propuestas" más abajo.
 
 ## Requisitos
 
@@ -264,12 +267,36 @@ docker-compose.yml                 # Postgres + MinIO + Adminer + backup diario
   con `jose` en una cookie httpOnly + un Data Access Layer que verifica la
   sesión) — un solo usuario operador no justifica la dependencia extra, y
   evita cualquier fricción de compatibilidad con las APIs nuevas de Next 16.
-- **Sin audio ni fotos todavía**: decisión explícita para no sumar un
-  proveedor de transcripción (Whisper de OpenAI u otro — Anthropic no ofrece
-  speech-to-text) ni la integración con MinIO en esta pasada. Se puede sumar
-  después como un módulo aislado sin tocar el resto.
+- **Sin audio todavía**: decisión explícita para no sumar un proveedor de
+  transcripción (Whisper de OpenAI u otro — Anthropic no ofrece
+  speech-to-text) en esta pasada. Se puede sumar después como un módulo
+  aislado sin tocar el resto.
+
+## Fotos de propuestas
+
+Cuando una inmobiliaria manda fotos de una propiedad, WhatsApp las entrega
+como mensajes separados (una imagen = un mensaje, sin concepto de "álbum" en
+la API) — normalmente solo una trae el texto de la propuesta como caption,
+el resto llegan sin texto. El webhook procesa el caption de imagen/video/
+documento igual que un mensaje de texto; al armar la propuesta,
+`agency-conversation.ts` junta las imágenes que esa inmobiliaria mandó en los
+últimos 30 minutos (heurística simple: mismo teléfono, ventana de tiempo, no
+hay forma más precisa de agruparlas), las baja de la Graph API
+(`downloadMedia` en `whatsapp.ts`) y las sube a **Vercel Blob**
+(`uploadMedia` en `storage.ts`). Si falla la descarga/subida de alguna foto
+puntual no bloquea la propuesta — se guarda igual, sin esa foto.
+
+`storage.ts` es el único punto que sabe que hoy usamos Vercel Blob — el día
+que se migre a MinIO/S3 (ya levantado en `docker-compose.yml` para dev
+local) alcanza con reescribir `uploadMedia()` con un cliente S3 apuntando a
+MinIO; nada del resto del código cambia.
 
 ## Próximas fases
 
-Ver el spec completo para el detalle de Fase 4 (relay de preguntas,
-visitas y créditos) y Fase 5 (hardening pre-piloto).
+El gap más importante que queda: los mensajes que el bot **inicia** (ficha
+nueva a una inmobiliaria, pedido de visita, aviso de propuesta nueva, y sobre
+todo el seguimiento a 3 días post-visita) usan texto libre, que la API de
+WhatsApp solo entrega si la otra parte escribió en las últimas 24hs. Fuera de
+esa ventana hace falta un **Message Template pre-aprobado por Meta** —
+`sendTemplate()` ya existe en `whatsapp.ts` pero ningún call site lo usa
+todavía. Ver el spec completo para el resto de Fase 5 (hardening pre-piloto).

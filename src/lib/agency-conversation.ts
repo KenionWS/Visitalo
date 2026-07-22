@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { db } from "@/db";
-import { agencies, conversations, proposals, searches } from "@/db/schema";
+import { agencies, conversations, proposals, searches, waMessages } from "@/db/schema";
 import { normalizeProposal } from "./llm";
-import { sendText } from "./whatsapp";
+import { sendText, downloadMedia } from "./whatsapp";
+import { uploadMedia } from "./storage";
 import { normalizeWords, formatMoney } from "./text";
 import { computeMatchScore } from "./matching";
 import { handleAgencyRelayAnswer } from "./relay";
@@ -13,6 +14,53 @@ type AgencyConversationContext = {
   pendingRelayThreadId?: string;
   pendingVisitId?: string;
 };
+
+const PHOTO_LOOKBACK_MINUTES = 30;
+const MAX_PHOTOS_PER_PROPOSAL = 6;
+
+/**
+ * Junta las fotos que la inmobiliaria mandó sueltas (sin caption) junto con
+ * el mensaje que sí trae el texto de la propuesta — WhatsApp no agrupa un
+ * envío de varias imágenes en un solo mensaje, cada una llega como un evento
+ * separado, así que las asociamos por "misma inmobiliaria, últimos N
+ * minutos" en vez de por un ID de grupo que la API no expone.
+ */
+async function collectRecentImageIds(phone: string): Promise<string[]> {
+  const since = new Date(Date.now() - PHOTO_LOOKBACK_MINUTES * 60 * 1000);
+  const rows = await db
+    .select({ payload: waMessages.payload })
+    .from(waMessages)
+    .where(
+      and(
+        eq(waMessages.phone, phone),
+        eq(waMessages.direction, "in"),
+        eq(waMessages.type, "image"),
+        gte(waMessages.createdAt, since)
+      )
+    )
+    .orderBy(waMessages.createdAt);
+
+  return rows
+    .map((r) => (r.payload as { image?: { id?: string } } | null)?.image?.id)
+    .filter((id): id is string => Boolean(id))
+    .slice(0, MAX_PHOTOS_PER_PROPOSAL);
+}
+
+/** Descarga y sube cada foto; una foto que falla se descarta y no bloquea el resto — son un nice-to-have, no el dato crítico de la propuesta. */
+async function downloadAndStorePhotos(mediaIds: string[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const mediaId of mediaIds) {
+    try {
+      const media = await downloadMedia(mediaId);
+      if (!media) continue;
+      const url = await uploadMedia(media.buffer, media.contentType, `proposals/${mediaId}`);
+      urls.push(url);
+    } catch (err) {
+      console.error(`[agency-conversation] no se pudo procesar la foto ${mediaId}:`, err);
+    }
+  }
+  return urls;
+}
 
 const PASS_WORDS = new Set(["paso", "no", "nada", "gracias"]);
 
@@ -166,6 +214,9 @@ export async function handleAgencyMessage(phone: string, text: string): Promise<
     { zoneLabel: normalized.zone_label, price: normalized.price, attributes }
   );
 
+  const recentImageIds = await collectRecentImageIds(phone);
+  const photos = await downloadAndStorePhotos(recentImageIds);
+
   await db.insert(proposals).values({
     searchId: search.id,
     agencyId: agency.id,
@@ -176,7 +227,7 @@ export async function handleAgencyMessage(phone: string, text: string): Promise<
     zoneLabel: normalized.zone_label,
     attributes,
     description: normalized.description,
-    photos: [],
+    photos,
     sourceRaw: { text },
     matchScore,
   });

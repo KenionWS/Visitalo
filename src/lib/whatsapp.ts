@@ -99,6 +99,43 @@ async function callGraphApi(body: Record<string, unknown>): Promise<SendResult> 
   };
 }
 
+/**
+ * Baja un adjunto (ej. una foto) a partir de su media ID (spec: la Graph API
+ * resuelve el ID a una URL firmada de corta duración, después hay que
+ * pedirla con el mismo Bearer token). Devuelve null en modo simulado o si
+ * falla cualquiera de los dos pasos — el llamador decide si eso bloquea o
+ * no el resto del flujo.
+ */
+export async function downloadMedia(
+  mediaId: string
+): Promise<{ buffer: Buffer; contentType: string } | null> {
+  if (!isConfigured()) {
+    console.warn(`[whatsapp] WHATSAPP_TOKEN no configurado. No se puede descargar el media ${mediaId}.`);
+    return null;
+  }
+
+  const metaRes = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${mediaId}`, {
+    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
+  });
+  if (!metaRes.ok) {
+    console.error(`[whatsapp] Error obteniendo metadata del media ${mediaId}:`, await metaRes.text());
+    return null;
+  }
+  const meta = (await metaRes.json()) as { url?: string; mime_type?: string };
+  if (!meta.url) return null;
+
+  const fileRes = await fetch(meta.url, {
+    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
+  });
+  if (!fileRes.ok) {
+    console.error(`[whatsapp] Error descargando el archivo del media ${mediaId}:`, await fileRes.text());
+    return null;
+  }
+
+  const arrayBuffer = await fileRes.arrayBuffer();
+  return { buffer: Buffer.from(arrayBuffer), contentType: meta.mime_type ?? "application/octet-stream" };
+}
+
 /** Envía un mensaje de texto libre. Solo válido dentro de la ventana de 24 hs. */
 export async function sendText(phone: string, text: string): Promise<SendResult> {
   return callGraphApi({
