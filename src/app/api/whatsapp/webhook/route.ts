@@ -27,8 +27,24 @@ type WhatsAppMessage = {
   timestamp: string;
   type: string;
   text?: { body: string };
+  image?: { caption?: string };
+  video?: { caption?: string };
+  document?: { caption?: string };
   [key: string]: unknown;
 };
+
+/**
+ * No guardamos fotos/adjuntos (fuera de scope, ver README), pero si vienen
+ * con un caption ese texto es información real (precio, m², etc.) y no hay
+ * que perderla — se procesa igual que un mensaje de texto.
+ */
+function extractMessageText(message: WhatsAppMessage): string | undefined {
+  if (message.type === "text") return message.text?.body;
+  if (message.type === "image") return message.image?.caption;
+  if (message.type === "video") return message.video?.caption;
+  if (message.type === "document") return message.document?.caption;
+  return undefined;
+}
 
 type WhatsAppStatus = {
   id: string;
@@ -86,7 +102,8 @@ export async function POST(req: NextRequest) {
 
         if (!inserted) continue; // ya lo habíamos procesado (reintento de Meta)
 
-        if (message.type === "text" && message.text?.body) {
+        const text = extractMessageText(message);
+        if (text) {
           const [agency] = await db
             .select({ id: agencies.id })
             .from(agencies)
@@ -96,12 +113,12 @@ export async function POST(req: NextRequest) {
           if (agency) {
             await enqueueJob("conversation.agency_message", {
               phone: message.from,
-              text: message.text.body,
+              text,
             });
           } else {
             await enqueueJob("conversation.buyer_message", {
               phone: message.from,
-              text: message.text.body,
+              text,
             });
           }
         }

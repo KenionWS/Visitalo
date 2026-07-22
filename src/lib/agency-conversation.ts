@@ -141,6 +141,24 @@ export async function handleAgencyMessage(phone: string, text: string): Promise<
     return;
   }
 
+  const hasContent =
+    normalized.price != null ||
+    normalized.area_m2 != null ||
+    normalized.rooms != null ||
+    normalized.zone_label != null ||
+    (normalized.attributes?.length ?? 0) > 0 ||
+    Boolean(normalized.description?.trim());
+
+  if (!hasContent) {
+    // Mensaje sin datos de propiedad (ej. "hola", solo fotos sin caption) —
+    // no creamos una propuesta vacía, le pedimos que cuente algo concreto.
+    await sendText(
+      phone,
+      "Contame algo de la propiedad (precio, m², ambientes, zona) para poder armar la ficha. Si no tenés nada, respondé \"paso\"."
+    );
+    return;
+  }
+
   const attributes = Object.fromEntries((normalized.attributes ?? []).map((a) => [a, true]));
 
   const matchScore = computeMatchScore(
