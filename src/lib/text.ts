@@ -27,6 +27,13 @@ const CONFIRM_WORDS = new Set([
 
 const REJECT_WORDS = new Set(["no", "nel", "incorrecto", "cambiar", "corregir"]);
 
+/** Formatea un monto según la moneda habitual de la operación: USD para venta, ARS para alquiler (mercado argentino). */
+export function formatMoney(amount: number | null, operation: string | null): string {
+  if (amount == null) return "sin especificar";
+  const formatted = amount.toLocaleString("es-AR");
+  return operation === "alquiler" ? `$ ${formatted} ARS` : `USD ${formatted}`;
+}
+
 /** Interpreta una respuesta libre como sí/no contra los mismos sets de palabras clave usados en toda la app. */
 export function parseYesNo(text: string): "yes" | "no" | null {
   const words = new Set(normalizeWords(text));

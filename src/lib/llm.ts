@@ -32,11 +32,13 @@ export const SearchFieldsSchema = z.object({
     .array(z.string())
     .nullable()
     .describe("Barrios o zonas de CABA que el comprador mencionó en este mensaje"),
-  budget_usd_max: z
+  budget_max: z
     .number()
     .int()
     .nullable()
-    .describe("Presupuesto máximo en dólares (USD), como número entero"),
+    .describe(
+      "Presupuesto máximo como número entero, en la moneda que corresponda: dólares (USD) si operation es venta, pesos argentinos (ARS) si operation es alquiler"
+    ),
   payment_method: z
     .enum(["contado", "credito", "mixto"])
     .nullable()
@@ -90,7 +92,13 @@ export async function extractSearchFields(
 }
 
 export const ProposalFieldsSchema = z.object({
-  price_usd: z.number().int().nullable().describe("Precio en dólares (USD)"),
+  price: z
+    .number()
+    .int()
+    .nullable()
+    .describe(
+      "Precio como número entero, en la moneda que corresponda: dólares (USD) para venta, pesos argentinos (ARS) para el alquiler mensual"
+    ),
   area_m2: z.number().int().nullable().describe("Superficie en m²"),
   rooms: z.number().int().nullable().describe("Cantidad de ambientes"),
   zone_label: z

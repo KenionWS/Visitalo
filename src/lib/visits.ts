@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { agencies, buyers, conversations, proposals, searches, visits } from "@/db/schema";
 import { parseVisitDateTime } from "./llm";
 import { sendText } from "./whatsapp";
-import { parseYesNo } from "./text";
+import { parseYesNo, formatMoney } from "./text";
 import { enqueueJob } from "./queue";
 
 /**
@@ -35,7 +35,7 @@ async function getVisitDetails(visitId: string) {
   const [buyer] = await db.select().from(buyers).where(eq(buyers.id, search.buyerId)).limit(1);
   if (!buyer) return null;
 
-  return { visit, proposal, agency, buyer };
+  return { visit, proposal, agency, search, buyer };
 }
 
 function formatVisitDateTime(date: Date): string {
@@ -83,7 +83,7 @@ async function getOrCreateBuyerConversation(phone: string) {
 export async function notifyAgencyOfVisitRequest(visitId: string): Promise<void> {
   const details = await getVisitDetails(visitId);
   if (!details) return;
-  const { agency, proposal, buyer } = details;
+  const { agency, proposal, search, buyer } = details;
 
   const available = agency.creditsFree - agency.creditsUsed;
   if (available <= 0) {
@@ -97,7 +97,7 @@ export async function notifyAgencyOfVisitRequest(visitId: string): Promise<void>
 
   await sendText(
     agency.phone,
-    `Un comprador pidió coordinar una visita a la propiedad en ${proposal.zoneLabel ?? "tu zona"} (USD ${proposal.priceUsd?.toLocaleString("es-AR") ?? "consultar"}).\n\n¿Qué día y horario te queda bien? Contestá con la fecha y hora.`
+    `Un comprador pidió coordinar una visita a la propiedad en ${proposal.zoneLabel ?? "tu zona"} (${formatMoney(proposal.price, search.operation)}).\n\n¿Qué día y horario te queda bien? Contestá con la fecha y hora.`
   );
 
   const conversation = await getOrCreateAgencyConversation(agency.phone);

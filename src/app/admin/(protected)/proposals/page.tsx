@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, proposals, searches } from "@/db/schema";
+import { formatMoney } from "@/lib/text";
 import { approveProposal, rejectProposal, saveProposal } from "./actions";
 
 export default async function ProposalsQueuePage() {
@@ -9,7 +10,8 @@ export default async function ProposalsQueuePage() {
       proposal: proposals,
       agencyName: agencies.name,
       searchZones: searches.zones,
-      searchBudget: searches.budgetUsdMax,
+      searchBudget: searches.budgetMax,
+      searchOperation: searches.operation,
     })
     .from(proposals)
     .innerJoin(agencies, eq(proposals.agencyId, agencies.id))
@@ -26,7 +28,7 @@ export default async function ProposalsQueuePage() {
       )}
 
       <ul className="mt-6 space-y-6">
-        {rows.map(({ proposal, agencyName, searchZones, searchBudget }) => {
+        {rows.map(({ proposal, agencyName, searchZones, searchBudget, searchOperation }) => {
           const saveWithId = saveProposal.bind(null, proposal.id);
           const approveWithId = approveProposal.bind(null, proposal.id);
           const rejectWithId = rejectProposal.bind(null, proposal.id);
@@ -43,8 +45,9 @@ export default async function ProposalsQueuePage() {
                   <strong>{agencyName}</strong> · {proposal.matchScore ?? 0}% match
                 </span>
                 <span>
-                  Búsqueda: {searchZones.join(", ") || "sin especificar"} · hasta USD{" "}
-                  {searchBudget?.toLocaleString("es-AR") ?? "sin especificar"}
+                  Búsqueda ({searchOperation === "alquiler" ? "alquiler" : "venta"}):{" "}
+                  {searchZones.join(", ") || "sin especificar"} · hasta{" "}
+                  {formatMoney(searchBudget, searchOperation)}
                 </span>
               </div>
 
@@ -64,10 +67,10 @@ export default async function ProposalsQueuePage() {
                   </p>
                   <div className="grid grid-cols-3 gap-2">
                     <input
-                      name="priceUsd"
+                      name="price"
                       type="number"
-                      defaultValue={proposal.priceUsd ?? ""}
-                      placeholder="Precio USD"
+                      defaultValue={proposal.price ?? ""}
+                      placeholder={searchOperation === "alquiler" ? "Precio ARS (mensual)" : "Precio USD"}
                       className="rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
                     />
                     <input

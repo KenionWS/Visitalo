@@ -6,13 +6,13 @@
 
 type SearchForMatch = {
   zones: string[];
-  budgetUsdMax: number | null;
+  budgetMax: number | null;
   mustHaves: string[];
 };
 
 type ProposalForMatch = {
   zoneLabel: string | null;
-  priceUsd: number | null;
+  price: number | null;
   attributes: Record<string, unknown> | null;
 };
 
@@ -36,11 +36,11 @@ export function computeMatchScore(search: SearchForMatch, proposal: ProposalForM
     score += ZONE_WEIGHT;
   }
 
-  if (search.budgetUsdMax && proposal.priceUsd) {
-    if (proposal.priceUsd <= search.budgetUsdMax * BUDGET_TOLERANCE) {
+  if (search.budgetMax && proposal.price) {
+    if (proposal.price <= search.budgetMax * BUDGET_TOLERANCE) {
       score += BUDGET_WEIGHT;
     }
-  } else if (!search.budgetUsdMax) {
+  } else if (!search.budgetMax) {
     score += BUDGET_WEIGHT;
   }
 

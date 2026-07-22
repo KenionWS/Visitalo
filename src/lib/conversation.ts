@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { buyers, conversations, searches } from "@/db/schema";
 import { extractSearchFields, type SearchFields } from "./llm";
 import { sendText } from "./whatsapp";
-import { parseYesNo } from "./text";
+import { parseYesNo, formatMoney } from "./text";
 import { enqueueJob } from "./queue";
 import { handleBuyerVisitConfirmReply } from "./visits";
 
@@ -65,7 +65,7 @@ function shapeKnownFields(search: SearchRow): Partial<SearchFields> {
     operation: search.operation === "venta" || search.operation === "alquiler" ? search.operation : null,
     property_type: search.propertyType,
     zones: search.zones.length > 0 ? search.zones : null,
-    budget_usd_max: search.budgetUsdMax,
+    budget_max: search.budgetMax,
     payment_method: search.paymentMethod as SearchFields["payment_method"],
     has_preapproval: search.hasPreapproval,
     preapproval_bank: search.preapprovalBank,
@@ -88,7 +88,7 @@ async function applyExtractedFields(search: SearchRow, extracted: SearchFields):
       operation: extracted.operation ?? search.operation,
       propertyType: extracted.property_type ?? search.propertyType,
       zones: mergeStringArray(search.zones, extracted.zones),
-      budgetUsdMax: extracted.budget_usd_max ?? search.budgetUsdMax,
+      budgetMax: extracted.budget_max ?? search.budgetMax,
       paymentMethod: extracted.payment_method ?? search.paymentMethod,
       hasPreapproval: extracted.has_preapproval ?? search.hasPreapproval,
       preapprovalBank: extracted.preapproval_bank ?? search.preapprovalBank,
@@ -110,10 +110,10 @@ function nextQuestion(search: SearchRow): PendingQuestion | null {
   if (search.zones.length === 0) {
     return { field: "zones", question: "¿En qué zona o barrios de CABA estás buscando?" };
   }
-  if (!search.budgetUsdMax) {
+  if (!search.budgetMax) {
     return search.operation === "alquiler"
-      ? { field: "budget_usd_max", question: "¿Cuál es tu presupuesto de alquiler mensual, en dólares?" }
-      : { field: "budget_usd_max", question: "¿Cuál es tu presupuesto máximo, en dólares?" };
+      ? { field: "budget_max", question: "¿Cuál es tu presupuesto de alquiler mensual, en pesos?" }
+      : { field: "budget_max", question: "¿Cuál es tu presupuesto máximo, en dólares?" };
   }
   if (search.operation === "alquiler") {
     return null; // en alquiler no preguntamos forma de pago ni crédito hipotecario
@@ -153,8 +153,8 @@ function buildSummary(search: SearchRow): string {
     `- Operación: ${isAlquiler ? "Alquiler" : "Compra"}`,
     `- Zona: ${search.zones.join(", ") || "sin especificar"}`,
     isAlquiler
-      ? `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"} por mes`
-      : `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"}`,
+      ? `- Presupuesto: hasta ${formatMoney(search.budgetMax, search.operation)} por mes`
+      : `- Presupuesto: hasta ${formatMoney(search.budgetMax, search.operation)}`,
   ];
   if (!isAlquiler) {
     lines.push(`- Forma de pago: ${paymentMethodLabel(search.paymentMethod)}`);
@@ -190,7 +190,7 @@ const GREETING =
 
 function hasAnyInfo(search: SearchRow): boolean {
   return Boolean(
-    search.operation || search.zones.length > 0 || search.propertyType || search.budgetUsdMax
+    search.operation || search.zones.length > 0 || search.propertyType || search.budgetMax
   );
 }
 

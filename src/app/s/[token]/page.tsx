@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { proposalEvents, proposals, relayThreads, searches, visits } from "@/db/schema";
+import { formatMoney } from "@/lib/text";
 import { DiscardButton } from "./DiscardButton";
 import { FavoriteButton, RequestVisitButton, AskQuestionForm } from "./ActionButtons";
 
@@ -110,7 +111,7 @@ export default async function ShortlistPage({
           <div>
             <dt className="inline font-medium">Presupuesto: </dt>
             <dd className="inline">
-              hasta USD {search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"}
+              hasta {formatMoney(search.budgetMax, search.operation)}
               {search.operation === "alquiler" ? " por mes" : ""}
             </dd>
           </div>
@@ -158,7 +159,7 @@ export default async function ShortlistPage({
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-display text-xl">
-                          USD {proposal.priceUsd?.toLocaleString("es-AR") ?? "consultar"}
+                          {proposal.price != null ? formatMoney(proposal.price, search.operation) : "consultar"}
                         </p>
                         <p className="text-sm text-[var(--tinta)]/70">
                           {proposal.zoneLabel ?? "Zona sin especificar"}

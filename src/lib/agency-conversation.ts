@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { agencies, conversations, proposals, searches } from "@/db/schema";
 import { normalizeProposal } from "./llm";
 import { sendText } from "./whatsapp";
-import { normalizeWords } from "./text";
+import { normalizeWords, formatMoney } from "./text";
 import { computeMatchScore } from "./matching";
 import { handleAgencyRelayAnswer } from "./relay";
 import { handleAgencyVisitDateReply } from "./visits";
@@ -47,8 +47,8 @@ export async function notifyAgencyOfSearch(agencyId: string, searchId: string): 
     `Tenemos un comprador activo en tu zona que busca ${isAlquiler ? "ALQUILAR" : "COMPRAR"}:`,
     `- Zona: ${search.zones.join(", ") || "sin especificar"}`,
     isAlquiler
-      ? `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"} de alquiler mensual`
-      : `- Presupuesto: hasta USD ${search.budgetUsdMax?.toLocaleString("es-AR") ?? "sin especificar"}`,
+      ? `- Presupuesto: hasta ${formatMoney(search.budgetMax, search.operation)} de alquiler mensual`
+      : `- Presupuesto: hasta ${formatMoney(search.budgetMax, search.operation)}`,
   ];
   if (!isAlquiler) {
     lines.push(`- Forma de pago: ${search.paymentMethod ?? "sin especificar"}`);
@@ -144,15 +144,15 @@ export async function handleAgencyMessage(phone: string, text: string): Promise<
   const attributes = Object.fromEntries((normalized.attributes ?? []).map((a) => [a, true]));
 
   const matchScore = computeMatchScore(
-    { zones: search.zones, budgetUsdMax: search.budgetUsdMax, mustHaves: search.mustHaves },
-    { zoneLabel: normalized.zone_label, priceUsd: normalized.price_usd, attributes }
+    { zones: search.zones, budgetMax: search.budgetMax, mustHaves: search.mustHaves },
+    { zoneLabel: normalized.zone_label, price: normalized.price, attributes }
   );
 
   await db.insert(proposals).values({
     searchId: search.id,
     agencyId: agency.id,
     status: "pending_review",
-    priceUsd: normalized.price_usd,
+    price: normalized.price,
     areaM2: normalized.area_m2,
     rooms: normalized.rooms,
     zoneLabel: normalized.zone_label,

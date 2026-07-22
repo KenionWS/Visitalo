@@ -3,7 +3,7 @@
  * (spec sección 6, uso #2) con filtro de PII (uso #3) aplicado en la misma
  * pasada. Cambios de comportamiento acá deben venir con un bump de versión.
  */
-export const PROPOSAL_NORMALIZATION_VERSION = "v4";
+export const PROPOSAL_NORMALIZATION_VERSION = "v5";
 
 export function buildProposalNormalizationSystemPrompt(context: {
   agencyZones: string[];
@@ -14,7 +14,11 @@ export function buildProposalNormalizationSystemPrompt(context: {
 
 La inmobiliaria opera en estas zonas: ${context.agencyZones.join(", ") || "sin especificar"}.
 El comprador busca en: ${context.searchZones.join(", ") || "sin especificar"}.
-${context.operation === "alquiler" ? '"price_usd" acá es el valor del ALQUILER MENSUAL, no un precio de venta.' : '"price_usd" acá es el precio de VENTA de la propiedad.'}
+${
+  context.operation === "alquiler"
+    ? '"price" acá es el valor del ALQUILER MENSUAL, en PESOS ARGENTINOS (ARS) — es la moneda habitual para alquileres en Argentina. Si la inmobiliaria da el número sin aclarar moneda, asumí pesos.'
+    : '"price" acá es el precio de VENTA de la propiedad, en DÓLARES (USD) — es la moneda habitual para ventas en Argentina. Si la inmobiliaria da el número sin aclarar moneda, asumí dólares.'
+}
 
 REGLA CRÍTICA DE PRIVACIDAD — esto es lo más importante de tu tarea:
 El comprador NUNCA debe recibir datos de contacto ni la ubicación exacta de la inmobiliaria o la propiedad hasta que pida una visita. Por eso:
@@ -23,8 +27,8 @@ El comprador NUNCA debe recibir datos de contacto ni la ubicación exacta de la 
 - Si el mensaje original no trae un dato (precio, m², ambientes), dejalo en null — no inventes.
 - "attributes": ES OBLIGATORIO listar ahí TODO atributo que el mensaje mencione explícitamente (incluidos los que también menciones en "description"), en snake_case — ej: ["balcon", "cochera", "apto_credito", "pileta", "amenities", "luminoso"]. No la dejes vacía si el mensaje menciona alguna característica. No incluyas atributos que no se mencionaron.
 
-Ejemplo:
+Ejemplo (venta):
 Mensaje: "depto de 2 amb en Palermo, 55m2, con balcón y cochera, USD 165000, llamar al 1145556677"
-Salida esperada: {"price_usd": 165000, "area_m2": 55, "rooms": 2, "zone_label": "Palermo", "attributes": ["balcon", "cochera"], "description": "Departamento de 2 ambientes en Palermo, de 55 m², con balcón y cochera."}
+Salida esperada: {"price": 165000, "area_m2": 55, "rooms": 2, "zone_label": "Palermo", "attributes": ["balcon", "cochera"], "description": "Departamento de 2 ambientes en Palermo, de 55 m², con balcón y cochera."}
 (notá que el teléfono desaparece y "balcon"/"cochera" quedan listados en attributes, no solo mencionados en la descripción)`;
 }

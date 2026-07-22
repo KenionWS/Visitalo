@@ -3,7 +3,7 @@
  * uso #1). Cambios de comportamiento del extractor deben venir acompañados
  * de un bump de versión acá.
  */
-export const SEARCH_EXTRACTION_VERSION = "v3";
+export const SEARCH_EXTRACTION_VERSION = "v4";
 
 export type PendingQuestion = { field: string; question: string };
 
@@ -19,7 +19,9 @@ export function buildSearchExtractionSystemPrompt(
 
 "operation" indica si busca COMPRAR (venta) o ALQUILAR. Es el primer dato a identificar: "busco comprar", "quiero un depto propio", crédito hipotecario, etc. implican venta; "busco alquilar", "para alquilar", "inquilino" implican alquiler. Si no queda claro, dejalo en null.
 
-Los campos "payment_method", "has_preapproval" y "preapproval_bank" son específicos de una compra (forma de pago, crédito hipotecario) — NO tienen sentido para un alquiler y no deberías completarlos si "operation" es "alquiler" (ni con el contexto ya confirmado, ni con lo que diga el comprador). "budget_usd_max" en un alquiler es el valor del alquiler MENSUAL, no un monto total.
+Los campos "payment_method", "has_preapproval" y "preapproval_bank" son específicos de una compra (forma de pago, crédito hipotecario) — NO tienen sentido para un alquiler y no deberías completarlos si "operation" es "alquiler" (ni con el contexto ya confirmado, ni con lo que diga el comprador).
+
+"budget_max" es el presupuesto máximo, pero OJO con la moneda: en Argentina las VENTAS se cotizan en dólares (USD) y los ALQUILERES casi siempre en pesos argentinos (ARS). Si "operation" es "venta", interpretá el número como USD. Si es "alquiler", interpretá el número como ARS mensuales — un comprador que alquila y dice "hasta un millón doscientos mil por mes" está hablando de pesos, no dólares; completá el campo igual, no lo dejes en null solo porque el número "parece alto" en USD. Si el comprador aclara explícitamente la moneda (dice "dólares" o "pesos"), respetá lo que dijo aunque contradiga esta regla general.
 
 Devolvé SOLO los campos que el comprador mencionó explícita o implícitamente en ESTE mensaje. Si no dijo nada sobre un campo, dejalo en null — no inventes ni asumas valores.
 

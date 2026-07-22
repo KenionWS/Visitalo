@@ -49,7 +49,9 @@ export const searches = pgTable("searches", {
   operation: text("operation"), // venta|alquiler — null hasta que el comprador lo confirme
   propertyType: text("property_type"),
   zones: text("zones").array().notNull().default([]),
-  budgetUsdMax: integer("budget_usd_max"),
+  // Nombre de columna SQL histórico ("budget_usd_max"); la moneda real depende
+  // de `operation` (USD para venta, ARS para alquiler) — ver conversation.ts.
+  budgetMax: integer("budget_usd_max"),
   paymentMethod: text("payment_method"), // contado|credito|mixto
   hasPreapproval: boolean("has_preapproval"),
   preapprovalBank: text("preapproval_bank"),
@@ -72,7 +74,9 @@ export const proposals = pgTable("proposals", {
   searchId: uuid("search_id").notNull().references(() => searches.id),
   agencyId: uuid("agency_id").notNull().references(() => agencies.id),
   status: text("status").notNull().default("pending_review"), // pending_review|published|discarded|withdrawn
-  priceUsd: integer("price_usd"),
+  // Nombre de columna SQL histórico ("price_usd"); la moneda real depende de
+  // la operación de la búsqueda (USD para venta, ARS para alquiler).
+  price: integer("price_usd"),
   areaM2: integer("area_m2"),
   rooms: integer("rooms"),
   zoneLabel: text("zone_label"), // ubicación aproximada, nunca dirección exacta

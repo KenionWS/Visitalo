@@ -19,12 +19,12 @@ function parseAttributes(raw: string): Record<string, boolean> {
 }
 
 function readEdits(formData: FormData) {
-  const priceUsd = formData.get("priceUsd");
+  const price = formData.get("price");
   const areaM2 = formData.get("areaM2");
   const rooms = formData.get("rooms");
 
   return {
-    priceUsd: priceUsd ? Number(priceUsd) : null,
+    price: price ? Number(price) : null,
     areaM2: areaM2 ? Number(areaM2) : null,
     rooms: rooms ? Number(rooms) : null,
     zoneLabel: String(formData.get("zoneLabel") ?? "").trim() || null,
