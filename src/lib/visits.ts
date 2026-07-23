@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, buyers, conversations, proposals, searches, visits } from "@/db/schema";
 import { parseVisitDateTimes, parseVisitOptionChoice } from "./llm";
-import { sendText } from "./whatsapp";
+import { sendText, sendTemplate } from "./whatsapp";
 import { parseYesNo, normalizeWords, formatMoney } from "./text";
 import { enqueueJob } from "./queue";
 
@@ -108,10 +108,15 @@ export async function notifyAgencyOfVisitRequest(visitId: string): Promise<void>
     return;
   }
 
-  await sendText(
-    agency.phone,
-    `Un comprador pidió coordinar una visita a la propiedad en ${proposal.zoneLabel ?? "tu zona"} (${formatMoney(proposal.price, search.operation)}).\n\n¿Qué días y horarios te quedarían bien? Si podés, pasame 2 o 3 opciones para que el comprador elija.`
-  );
+  await sendTemplate(agency.phone, "visitalo_pedido_visita", "es_AR", [
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: proposal.zoneLabel ?? "tu zona" },
+        { type: "text", text: formatMoney(proposal.price, search.operation) },
+      ],
+    },
+  ]);
 
   const conversation = await getOrCreateAgencyConversation(agency.phone);
   const context = (conversation.context ?? {}) as AgencyConversationContext;
@@ -305,8 +310,5 @@ export async function sendVisitFollowup(visitId: string): Promise<void> {
   const details = await getVisitDetails(visitId);
   if (!details || details.visit.status !== "confirmed") return;
 
-  await sendText(
-    details.buyer.phone,
-    "¿Cómo te fue en la visita? Contanos si te interesa avanzar con la propiedad o si seguís buscando."
-  );
+  await sendTemplate(details.buyer.phone, "visitalo_seguimiento_visita", "es_AR");
 }

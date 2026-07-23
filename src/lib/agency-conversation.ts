@@ -2,7 +2,7 @@ import { and, eq, gte } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, conversations, proposals, searches, waMessages } from "@/db/schema";
 import { normalizeProposal, detectContactInfoInImage } from "./llm";
-import { sendText, downloadMedia } from "./whatsapp";
+import { sendText, sendTemplate, downloadMedia } from "./whatsapp";
 import { uploadMedia } from "./storage";
 import { normalizeWords, formatMoney } from "./text";
 import { computeMatchScore } from "./matching";
@@ -101,25 +101,30 @@ export async function notifyAgencyOfSearch(agencyId: string, searchId: string): 
   if (!agency || !search) return;
 
   const isAlquiler = search.operation === "alquiler";
-  const lines = [
-    `Tenemos un comprador activo en tu zona que busca ${isAlquiler ? "ALQUILAR" : "COMPRAR"}:`,
-    `- Zona: ${search.zones.join(", ") || "sin especificar"}`,
-    isAlquiler
-      ? `- Presupuesto: hasta ${formatMoney(search.budgetMax, search.operation)} de alquiler mensual`
-      : `- Presupuesto: hasta ${formatMoney(search.budgetMax, search.operation)}`,
-  ];
+  const zona = search.zones.join(", ") || "sin especificar";
+  const presupuesto = isAlquiler
+    ? `${formatMoney(search.budgetMax, search.operation)} de alquiler mensual`
+    : formatMoney(search.budgetMax, search.operation);
+  const extraParts: string[] = [];
   if (!isAlquiler) {
-    lines.push(`- Forma de pago: ${search.paymentMethod ?? "sin especificar"}`);
+    extraParts.push(`Forma de pago: ${search.paymentMethod ?? "sin especificar"}.`);
   }
   if (search.mustHaves.length > 0) {
-    lines.push(`- Busca: ${search.mustHaves.join(", ")}`);
+    extraParts.push(`Busca: ${search.mustHaves.join(", ")}.`);
   }
-  lines.push(
-    "",
-    "Si tenés algo que le pueda interesar, contanos: precio, m², ambientes, zona aproximada y características. Si no tenés nada, respondé \"paso\"."
-  );
+  const extra = extraParts.length > 0 ? extraParts.join(" ") : "Sin datos adicionales.";
 
-  await sendText(agency.phone, lines.join("\n"));
+  await sendTemplate(agency.phone, "visitalo_ficha_busqueda", "es_AR", [
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: isAlquiler ? "alquilar" : "comprar" },
+        { type: "text", text: zona },
+        { type: "text", text: presupuesto },
+        { type: "text", text: extra },
+      ],
+    },
+  ]);
 
   const conversation = await getOrCreateAgencyConversation(agency.phone);
   await db
