@@ -1,21 +1,52 @@
 import Link from "next/link";
 import { desc } from "drizzle-orm";
-import { ChevronRight, Plus, Building2 } from "lucide-react";
+import { ChevronRight, Plus, Building2, X } from "lucide-react";
 import { db } from "@/db";
-import { agencies } from "@/db/schema";
-import { PageHeader } from "@/components/admin/PageHeader";
+import { agencies, agencyLeads } from "@/db/schema";
+import { PageHeader, SectionLabel } from "@/components/admin/PageHeader";
 import { Card } from "@/components/admin/Card";
 import { Badge } from "@/components/admin/Badge";
 import { EmptyState } from "@/components/admin/EmptyState";
-import { createAgency } from "./actions";
-import { ZoneCheckboxes } from "./ZoneCheckboxes";
+import { createAgency, dismissAgencyLead } from "./actions";
+import { ZoneCheckboxes } from "@/components/ZoneCheckboxes";
 
 export default async function AgenciesPage() {
   const rows = await db.select().from(agencies).orderBy(desc(agencies.createdAt));
+  const leads = await db.select().from(agencyLeads).orderBy(desc(agencyLeads.createdAt));
 
   return (
     <div className="space-y-6">
       <PageHeader title="Inmobiliarias" description={`${rows.length} dadas de alta`} />
+
+      {leads.length > 0 && (
+        <div>
+          <SectionLabel>Pedidos de alta desde la landing ({leads.length})</SectionLabel>
+          <Card className="mt-3" padded={false}>
+            <ul className="divide-y divide-[var(--tinta)]/8">
+              {leads.map((lead) => (
+                <li key={lead.id} className="flex items-center justify-between gap-4 p-4">
+                  <div className="min-w-0">
+                    <p className="font-medium text-[var(--tinta)]">{lead.name}</p>
+                    <p className="mt-0.5 truncate text-sm text-[var(--tinta)]/55">
+                      {lead.phone} · {lead.zones.join(", ") || "sin zonas"} ·{" "}
+                      {lead.createdAt.toLocaleDateString("es-AR")}
+                    </p>
+                  </div>
+                  <form action={dismissAgencyLead.bind(null, lead.id)}>
+                    <button
+                      type="submit"
+                      aria-label="Descartar"
+                      className="flex h-8 w-8 min-h-0 items-center justify-center rounded-full text-[var(--tinta)]/40 hover:bg-[var(--fondo)] hover:text-[var(--tinta)]/70"
+                    >
+                      <X size={16} strokeWidth={2} />
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      )}
 
       <details className="group rounded-2xl border border-[var(--tinta)]/8 bg-white shadow-sm shadow-black/[0.02] open:shadow-md">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 text-sm font-medium text-[var(--verde-profundo)]">

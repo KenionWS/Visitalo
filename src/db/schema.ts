@@ -25,6 +25,15 @@ export const buyers = pgTable("buyers", {
   uniqueIndex("buyers_phone_idx").on(table.phone),
 ]);
 
+/** Pedidos de alta desde la landing pública de /inmobiliarias — se convierten en `agencies` a mano desde el admin. */
+export const agencyLeads = pgTable("agency_leads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  zones: text("zones").array().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const agencies = pgTable("agencies", {
   id: uuid("id").primaryKey().defaultRandom(),
   phone: text("phone").notNull(),

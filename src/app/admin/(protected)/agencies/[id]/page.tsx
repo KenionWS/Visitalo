@@ -22,7 +22,7 @@ import { Card } from "@/components/admin/Card";
 import { Badge, type BadgeVariant } from "@/components/admin/Badge";
 import { EmptyState } from "@/components/admin/EmptyState";
 import { updateAgency } from "../actions";
-import { ZoneCheckboxes } from "../ZoneCheckboxes";
+import { ZoneCheckboxes } from "@/components/ZoneCheckboxes";
 
 function statusLabel(status: string): string {
   switch (status) {

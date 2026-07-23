@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { verifySession } from "@/lib/auth/dal";
 import { db } from "@/db";
-import { agencies } from "@/db/schema";
+import { agencies, agencyLeads } from "@/db/schema";
 
 function readZones(formData: FormData): string[] {
   return formData.getAll("zones").map((z) => String(z));
@@ -27,6 +27,12 @@ export async function createAgency(formData: FormData) {
 
   revalidatePath("/admin/agencies");
   redirect("/admin/agencies");
+}
+
+export async function dismissAgencyLead(leadId: string) {
+  await verifySession();
+  await db.delete(agencyLeads).where(eq(agencyLeads.id, leadId));
+  revalidatePath("/admin/agencies");
 }
 
 export async function updateAgency(agencyId: string, formData: FormData) {
