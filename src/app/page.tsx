@@ -5,6 +5,7 @@ import { Reveal } from "@/components/Reveal";
 import { ScrollySteps } from "@/components/ScrollySteps";
 import { Faq } from "@/components/Faq";
 import { ChatSim, type ChatMessage } from "@/components/ChatSim";
+import { VisitaloIso } from "@/components/VisitaloIso";
 
 type Step = { icon: React.ReactNode; title: string; body: string };
 
@@ -108,9 +109,14 @@ export default function Home() {
     <div className="flex flex-1 flex-col">
       <header className="bg-[var(--verde-profundo)] px-5 py-16 text-white sm:py-24">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="font-display text-2xl sm:text-3xl">
-            visitalo<span className="text-[var(--ambar)]">.</span>
-          </p>
+          <div className="flex items-center justify-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--papel)] sm:h-10 sm:w-10">
+              <VisitaloIso className="h-[22px] w-[22px] sm:h-6 sm:w-6" />
+            </div>
+            <p className="font-display text-2xl sm:text-3xl">
+              visitalo<span className="text-[var(--ambar)]">.</span>
+            </p>
+          </div>
           <h1 className="mt-6 font-display text-4xl leading-tight sm:text-5xl">
             Tu próxima propiedad te busca a vos
           </h1>
@@ -223,8 +229,9 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="px-5 py-16 text-center sm:py-24">
-          <Reveal className="mx-auto max-w-xl">
+        <section className="relative overflow-hidden px-5 py-16 text-center sm:py-24">
+          <VisitaloIso className="pointer-events-none absolute left-1/2 top-1/2 h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 opacity-[0.05]" />
+          <Reveal className="relative mx-auto max-w-xl">
             <h2 className="font-display text-2xl text-[var(--tinta)] sm:text-3xl">
               Empezá a buscar sin mover un dedo de más
             </h2>

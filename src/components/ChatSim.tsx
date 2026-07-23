@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { VisitaloIso } from "./VisitaloIso";
 
 export type ChatMessage = { from: "me" | "them"; text: string };
 
@@ -32,8 +33,8 @@ export function ChatSim({ messages, contactName = "Visitalo" }: { messages: Chat
       className="mx-auto w-full max-w-sm overflow-hidden rounded-[1.75rem] border border-[var(--tinta)]/10 bg-white shadow-xl"
     >
       <div className="flex items-center gap-3 bg-[var(--verde-profundo)] px-4 py-3 text-white">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--ambar)] font-display text-sm text-[var(--tinta)]">
-          v.
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--papel)]">
+          <VisitaloIso className="h-5 w-5" />
         </div>
         <div>
           <p className="text-sm font-medium">{contactName}</p>
