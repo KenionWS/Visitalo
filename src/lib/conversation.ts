@@ -241,22 +241,28 @@ async function handleQualifying(
   const questionsAsked = context.questionsAsked ?? 0;
 
   if (question && questionsAsked < MAX_QUALIFYING_QUESTIONS) {
+    // Mandamos primero y recién después movemos pendingField/pendingQuestion
+    // hacia adelante: si el envío falla y el job reintenta, handleQualifying
+    // se vuelve a llamar con el MISMO texto pero leyendo el context ya
+    // actualizado — sin este orden, el reintento interpretaría la respuesta
+    // del comprador como si contestara la pregunta siguiente, no la que
+    // realmente contestó.
+    await sendText(phone, isFirstTurn ? `${GREETING}\n\n${question.question}` : question.question);
     await setConversationState(conversationId, "QUALIFYING", {
       ...context,
       questionsAsked: questionsAsked + 1,
       pendingField: question.field,
       pendingQuestion: question.question,
     });
-    await sendText(phone, isFirstTurn ? `${GREETING}\n\n${question.question}` : question.question);
     return;
   }
 
+  await sendText(phone, buildSummary(updatedSearch));
   await setConversationState(conversationId, "CONFIRMING", {
     ...context,
     pendingField: undefined,
     pendingQuestion: undefined,
   });
-  await sendText(phone, buildSummary(updatedSearch));
 }
 
 async function handleConfirming(
@@ -273,23 +279,30 @@ async function handleConfirming(
       .set({ status: "active", updatedAt: new Date() })
       .where(eq(searches.id, search.id))
       .returning();
+
+    // Encolamos el dispatch y pasamos a ACTIVE antes de mandar ningún
+    // WhatsApp: si el envío falla y el job reintenta, handleBuyerMessage ya
+    // enruta por estado ACTIVE (no vuelve a entrar acá) — evita reactivar la
+    // búsqueda y, sobre todo, evita encolar distribution.dispatch dos veces
+    // (que le mandaría la ficha duplicada a las inmobiliarias).
+    await enqueueJob("distribution.dispatch", { searchId: activated.id });
+    await setConversationState(conversationId, "ACTIVE", context);
+
     await sendText(
       phone,
       `Listo, tu búsqueda ya está activa. Vamos a avisarte apenas tengamos propuestas.\n\nMirá tu shortlist acá: ${shortlistUrl(activated.shortlistToken)}`
     );
-    await enqueueJob("distribution.dispatch", { searchId: activated.id });
 
-    // Preguntamos el opt-in de marketing una sola vez por comprador, recién
-    // acá para no interrumpir el flujo de calificación con algo que no
-    // tiene que ver con encontrar la propiedad.
+    // Opt-in de marketing, una sola vez por comprador. Si este envío falla,
+    // el reintento cae en handleActive (mensaje genérico) en vez de volver a
+    // preguntar — perder la pregunta una vez es preferible a arriesgar que
+    // se le atribuya como respuesta un mensaje que nunca vio.
     if (buyer.marketingOptIn === null) {
       await sendText(
         phone,
         "Una última cosa: ¿querés que te avisemos por acá de novedades y promociones de Visitalo más adelante? Respondé sí o no."
       );
       await setConversationState(conversationId, "ACTIVE", { ...context, pendingMarketingOptIn: true });
-    } else {
-      await setConversationState(conversationId, "ACTIVE", context);
     }
     return;
   }

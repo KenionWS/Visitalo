@@ -98,6 +98,19 @@ export async function handleAgencyRelayAnswer(
   }
   const { thread, agency, buyer } = details;
 
+  // Ya se había redactado y guardado la respuesta en un intento anterior que
+  // falló recién al avisarle al comprador — no volvemos a llamar al LLM,
+  // solo reintentamos el envío con lo que ya quedó guardado.
+  if (thread.status === "answered" && thread.answer) {
+    await sendText(buyer.phone, `Te respondieron tu pregunta:\n\n"${thread.answer}"`);
+    await db
+      .update(conversations)
+      .set({ context: { ...context, pendingRelayThreadId: undefined }, updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId));
+    await sendText(agency.phone, "¡Gracias! Se la reenviamos al comprador.");
+    return;
+  }
+
   const redactedByLlm = await redactRelayMessage(text, "inmobiliaria_a_comprador");
   if (!redactedByLlm) {
     throw new Error(

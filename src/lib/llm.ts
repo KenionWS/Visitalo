@@ -7,7 +7,12 @@ import { buildRelayRedactionSystemPrompt } from "../../prompts/relay-redaction";
 import { buildVisitDateTimeSystemPrompt } from "../../prompts/visit-datetime";
 import { buildVisitOptionChoiceSystemPrompt } from "../../prompts/visit-option-choice";
 
-const MODEL = "claude-opus-4-8";
+// Todas las llamadas de este archivo son extracción/clasificación con schema
+// fijo (structured outputs) — no razonamiento abierto — así que un modelo
+// chico rinde igual a una fracción del costo. Si algún caso puntual muestra
+// baja calidad (ej. redacción de PII), subir SOLO ESA llamada a un modelo
+// mayor en vez de este constante global.
+const MODEL = "claude-haiku-4-5";
 
 let cachedClient: Anthropic | null = null;
 

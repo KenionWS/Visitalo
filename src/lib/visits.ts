@@ -189,7 +189,7 @@ export async function handleBuyerVisitConfirmReply(
 
   const optionIsos = context.pendingVisitOptions ?? [];
   const details = await getVisitDetails(visitId);
-  if (!details || details.visit.status !== "requested" || optionIsos.length === 0) {
+  if (!details || optionIsos.length === 0) {
     await db
       .update(conversations)
       .set({
@@ -200,6 +200,44 @@ export async function handleBuyerVisitConfirmReply(
     return;
   }
   const { visit, agency, buyer } = details;
+
+  // Ya se había cobrado y confirmado en un intento anterior que llegó a
+  // fallar recién al mandar el WhatsApp de confirmación (ej. token vencido)
+  // — no volvemos a cobrar el crédito ni a llamar al LLM, solo reintentamos
+  // avisar. Sin este chequeo, el reintento entero (incluida la elección de
+  // horario) se repetiría desde cero.
+  if (visit.status === "confirmed") {
+    const when = visit.scheduledAt ? ` para el ${formatVisitDateTime(visit.scheduledAt)}` : "";
+    const agencyContact = agency.contactName ? `${agency.name} (${agency.contactName})` : agency.name;
+    await sendText(
+      phone,
+      `¡Visita confirmada${when}! Coordiná los detalles finales directo con la inmobiliaria: ${agencyContact} — ${agency.phone}`
+    );
+    await sendText(
+      agency.phone,
+      `¡Visita confirmada${when}! Coordiná los detalles finales directo con el comprador: ${buyer.phone}`
+    );
+    await db
+      .update(conversations)
+      .set({
+        context: { ...context, pendingVisitId: undefined, pendingVisitOptions: undefined },
+        updatedAt: new Date(),
+      })
+      .where(eq(conversations.id, conversationId));
+    return;
+  }
+
+  if (visit.status !== "requested") {
+    await db
+      .update(conversations)
+      .set({
+        context: { ...context, pendingVisitId: undefined, pendingVisitOptions: undefined },
+        updatedAt: new Date(),
+      })
+      .where(eq(conversations.id, conversationId));
+    return;
+  }
+
   const options = optionIsos.map((iso) => new Date(iso));
 
   if (isNoneOfTheOptions(text)) {
