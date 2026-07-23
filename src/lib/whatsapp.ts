@@ -7,6 +7,7 @@
  * sistema (webhook, jobs) se puede probar en local sin cuenta de Meta.
  */
 
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { waMessages } from "@/db/schema";
 
@@ -170,4 +171,37 @@ export async function sendTemplate(
       ...(components.length > 0 ? { components } : {}),
     },
   });
+}
+
+const SESSION_WINDOW_HOURS = 24;
+
+async function hasRecentInbound(phone: string): Promise<boolean> {
+  const cutoff = new Date(Date.now() - SESSION_WINDOW_HOURS * 60 * 60 * 1000);
+  const [last] = await db
+    .select({ createdAt: waMessages.createdAt })
+    .from(waMessages)
+    .where(and(eq(waMessages.phone, phone), eq(waMessages.direction, "in")))
+    .orderBy(desc(waMessages.createdAt))
+    .limit(1);
+  return Boolean(last && last.createdAt > cutoff);
+}
+
+/**
+ * Manda como mensaje de sesión (sin costo) si el destinatario nos escribió
+ * en las últimas 24 hs; si no, cae al template pre-aprobado (tiene costo
+ * por Meta, pero es el único que funciona fuera de esa ventana). Para
+ * cualquier aviso proactivo donde no sabemos de antemano si sigue "abierta"
+ * la ventana con ese número.
+ */
+export async function sendTextOrTemplate(
+  phone: string,
+  text: string,
+  templateName: string,
+  templateComponents: TemplateComponent[] = [],
+  languageCode = "es_AR"
+): Promise<SendResult> {
+  if (await hasRecentInbound(phone)) {
+    return sendText(phone, text);
+  }
+  return sendTemplate(phone, templateName, languageCode, templateComponents);
 }

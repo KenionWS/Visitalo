@@ -2,7 +2,7 @@ import { and, eq, gte } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, conversations, proposals, searches, waMessages } from "@/db/schema";
 import { normalizeProposal, detectContactInfoInImage } from "./llm";
-import { sendText, sendTemplate, downloadMedia } from "./whatsapp";
+import { sendText, sendTextOrTemplate, downloadMedia } from "./whatsapp";
 import { uploadMedia } from "./storage";
 import { normalizeWords, formatMoney } from "./text";
 import { computeMatchScore } from "./matching";
@@ -119,7 +119,18 @@ export async function notifyAgencyOfSearch(agencyId: string, searchId: string): 
   }
   const extra = extraParts.length > 0 ? extraParts.join(" ") : "Sin datos adicionales.";
 
-  await sendTemplate(agency.phone, "visitalo_ficha_busqueda", "es_AR", [
+  const plainTextLines = [
+    `Tenemos un comprador activo en tu zona que busca ${isAlquiler ? "ALQUILAR" : "COMPRAR"}:`,
+    `- Zona: ${zona}`,
+    `- Presupuesto: hasta ${presupuesto}`,
+  ];
+  if (extraParts.length > 0) plainTextLines.push(...extraParts.map((p) => `- ${p}`));
+  plainTextLines.push(
+    "",
+    "Si tenés algo que le pueda interesar, contanos: precio, m², ambientes, zona aproximada y características. Si no tenés nada, respondé \"paso\"."
+  );
+
+  await sendTextOrTemplate(agency.phone, plainTextLines.join("\n"), "visitalo_ficha_busqueda", [
     {
       type: "body",
       parameters: [

@@ -3,7 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { buyers, conversations, searches } from "@/db/schema";
 import { extractSearchFields, type SearchFields } from "./llm";
-import { sendText, sendTemplate } from "./whatsapp";
+import { sendText, sendTextOrTemplate } from "./whatsapp";
 import { parseYesNo, formatMoney } from "./text";
 import { enqueueJob } from "./queue";
 import { handleBuyerVisitConfirmReply } from "./visits";
@@ -359,12 +359,13 @@ export async function notifyBuyerOfNewProposal(searchId: string): Promise<void> 
   const [buyer] = await db.select().from(buyers).where(eq(buyers.id, search.buyerId)).limit(1);
   if (!buyer) return;
 
-  await sendTemplate(buyer.phone, "visitalo_nueva_propuesta", "es_AR", [
-    {
-      type: "body",
-      parameters: [{ type: "text", text: shortlistUrl(search.shortlistToken) }],
-    },
-  ]);
+  const url = shortlistUrl(search.shortlistToken);
+  await sendTextOrTemplate(
+    buyer.phone,
+    `Tenés una propuesta nueva para tu búsqueda. Mirala acá: ${url}`,
+    "visitalo_nueva_propuesta",
+    [{ type: "body", parameters: [{ type: "text", text: url }] }]
+  );
 }
 
 /**

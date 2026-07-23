@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, buyers, conversations, proposals, searches, visits } from "@/db/schema";
 import { parseVisitDateTimes, parseVisitOptionChoice } from "./llm";
-import { sendText, sendTemplate } from "./whatsapp";
+import { sendText, sendTextOrTemplate } from "./whatsapp";
 import { parseYesNo, normalizeWords, formatMoney } from "./text";
 import { enqueueJob } from "./queue";
 
@@ -108,15 +108,22 @@ export async function notifyAgencyOfVisitRequest(visitId: string): Promise<void>
     return;
   }
 
-  await sendTemplate(agency.phone, "visitalo_pedido_visita", "es_AR", [
-    {
-      type: "body",
-      parameters: [
-        { type: "text", text: proposal.zoneLabel ?? "tu zona" },
-        { type: "text", text: formatMoney(proposal.price, search.operation) },
-      ],
-    },
-  ]);
+  const zoneText = proposal.zoneLabel ?? "tu zona";
+  const priceText = formatMoney(proposal.price, search.operation);
+  await sendTextOrTemplate(
+    agency.phone,
+    `Un comprador pidió coordinar una visita a la propiedad en ${zoneText} (${priceText}).\n\n¿Qué días y horarios te quedarían bien? Si podés, pasame 2 o 3 opciones para que el comprador elija.`,
+    "visitalo_pedido_visita",
+    [
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: zoneText },
+          { type: "text", text: priceText },
+        ],
+      },
+    ]
+  );
 
   const conversation = await getOrCreateAgencyConversation(agency.phone);
   const context = (conversation.context ?? {}) as AgencyConversationContext;
@@ -310,5 +317,9 @@ export async function sendVisitFollowup(visitId: string): Promise<void> {
   const details = await getVisitDetails(visitId);
   if (!details || details.visit.status !== "confirmed") return;
 
-  await sendTemplate(details.buyer.phone, "visitalo_seguimiento_visita", "es_AR");
+  await sendTextOrTemplate(
+    details.buyer.phone,
+    "¿Cómo te fue en la visita? Contanos si te interesa avanzar con la propiedad o si seguís buscando.",
+    "visitalo_seguimiento_visita"
+  );
 }
