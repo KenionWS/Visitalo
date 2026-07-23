@@ -300,7 +300,7 @@ async function handleConfirming(
     if (buyer.marketingOptIn === null) {
       await sendText(
         phone,
-        "Una última cosa: ¿querés que te avisemos por acá de novedades y promociones de Visitalo más adelante? Respondé sí o no."
+        "Una última cosa: para poder avisarte cuando tengamos novedades de propiedades que te puedan interesar, necesitamos tu consentimiento. ¿Nos das el ok? Respondé sí o no."
       );
       await setConversationState(conversationId, "ACTIVE", { ...context, pendingMarketingOptIn: true });
     }
@@ -337,11 +337,11 @@ async function handleMarketingOptInReply(
   await setConversationState(conversationId, "ACTIVE", { ...context, pendingMarketingOptIn: undefined });
 
   if (answer === "yes") {
-    await sendText(phone, "¡Genial! Te vamos a avisar de novedades y promociones más adelante.");
+    await sendText(phone, "¡Genial! Te vamos a avisar cuando tengamos novedades de propiedades para vos.");
     return;
   }
   if (answer === "no") {
-    await sendText(phone, "Dale, no te vamos a mandar promociones.");
+    await sendText(phone, "Dale, no te vamos a escribir por este tema.");
     return;
   }
 

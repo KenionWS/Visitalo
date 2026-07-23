@@ -73,10 +73,15 @@ async function downloadAndStorePhotos(mediaIds: string[]): Promise<{ urls: strin
 }
 
 const PASS_WORDS = new Set(["paso", "no", "nada", "gracias"]);
+// Un mensaje largo con "paso"/"no" sueltos (ej. "te paso este depto...",
+// "no tiene cochera pero...") es casi siempre una propuesta real, no un
+// rechazo — el rechazo real es corto ("paso", "no tengo nada").
+const PASS_MAX_WORDS = 6;
 
 function isPass(text: string): boolean {
-  const words = new Set(normalizeWords(text));
-  return [...words].some((w) => PASS_WORDS.has(w));
+  const words = normalizeWords(text);
+  if (words.length === 0 || words.length > PASS_MAX_WORDS) return false;
+  return words.some((w) => PASS_WORDS.has(w));
 }
 
 async function getOrCreateAgencyConversation(phone: string) {
