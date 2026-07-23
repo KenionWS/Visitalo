@@ -1,19 +1,28 @@
+import Link from "next/link";
 import { desc, eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import {
+  ArrowLeft,
+  ClipboardList,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  CreditCard,
+  CalendarClock,
+  CalendarCheck2,
+  CalendarX2,
+  Inbox,
+} from "lucide-react";
 import { db } from "@/db";
 import { agencies, proposals, searches, visits } from "@/db/schema";
 import { formatMoney } from "@/lib/text";
+import { PageHeader, SectionLabel } from "@/components/admin/PageHeader";
+import { StatCard } from "@/components/admin/StatCard";
+import { Card } from "@/components/admin/Card";
+import { Badge, type BadgeVariant } from "@/components/admin/Badge";
+import { EmptyState } from "@/components/admin/EmptyState";
 import { updateAgency } from "../actions";
 import { ZoneCheckboxes } from "../ZoneCheckboxes";
-
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-xl border border-[var(--tinta)]/10 bg-white p-4">
-      <p className="text-xs text-[var(--tinta)]/60">{label}</p>
-      <p className="mt-1 font-display text-2xl">{value}</p>
-    </div>
-  );
-}
 
 function statusLabel(status: string): string {
   switch (status) {
@@ -30,14 +39,14 @@ function statusLabel(status: string): string {
   }
 }
 
-function statusColor(status: string): string {
+function statusVariant(status: string): BadgeVariant {
   switch (status) {
     case "published":
-      return "bg-[var(--verde-claro)] text-[var(--verde-profundo)]";
+      return "success";
     case "pending_review":
-      return "bg-[var(--ambar)]/20 text-[var(--tinta)]";
+      return "warning";
     default:
-      return "bg-black/5 text-[var(--tinta)]/60";
+      return "neutral";
   }
 }
 
@@ -73,95 +82,107 @@ export default async function AgencyProfilePage({
   const visitsCancelled = visitRows.filter((v) => v.status === "cancelled").length;
 
   return (
-    <div>
-      <h1 className="font-display text-2xl text-[var(--tinta)]">{agency.name}</h1>
-      <p className="mt-1 text-sm text-[var(--tinta)]/60">Teléfono: {agency.phone} (no editable)</p>
-
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">Estadísticas</p>
-      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Propuestas totales" value={proposalRows.length} />
-        <StatCard label="Publicadas" value={published} />
-        <StatCard label="Por revisar" value={pendingReview} />
-        <StatCard label="Descartadas" value={discarded} />
-        <StatCard label="Créditos usados" value={`${agency.creditsUsed} / ${agency.creditsFree}`} />
-        <StatCard label="Visitas solicitadas" value={visitsRequested} />
-        <StatCard label="Visitas confirmadas" value={visitsConfirmed} />
-        <StatCard label="Visitas canceladas" value={visitsCancelled} />
+    <div className="space-y-8">
+      <div>
+        <Link
+          href="/admin/agencies"
+          className="inline-flex items-center gap-1 text-sm text-[var(--tinta)]/50 hover:text-[var(--tinta)]/80"
+        >
+          <ArrowLeft size={14} strokeWidth={2} />
+          Inmobiliarias
+        </Link>
+        <div className="mt-2">
+          <PageHeader title={agency.name} description={`${agency.phone} (no editable)`} />
+        </div>
       </div>
 
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">Editar</p>
-      <form
-        action={updateWithId}
-        className="mt-2 grid grid-cols-1 gap-3 rounded-xl border border-[var(--tinta)]/10 bg-white p-5 sm:grid-cols-2"
-      >
-        <div>
-          <label className="block text-sm font-medium">Nombre</label>
-          <input
-            name="name"
-            defaultValue={agency.name}
-            required
-            className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
-          />
+      <div>
+        <SectionLabel>Estadísticas</SectionLabel>
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Propuestas totales" value={proposalRows.length} icon={ClipboardList} tone="neutral" />
+          <StatCard label="Publicadas" value={published} icon={CheckCircle2} />
+          <StatCard label="Por revisar" value={pendingReview} icon={Clock} tone="ambar" />
+          <StatCard label="Descartadas" value={discarded} icon={XCircle} tone="neutral" />
+          <StatCard label="Créditos usados" value={`${agency.creditsUsed} / ${agency.creditsFree}`} icon={CreditCard} tone="neutral" />
+          <StatCard label="Visitas solicitadas" value={visitsRequested} icon={CalendarClock} tone="ambar" />
+          <StatCard label="Visitas confirmadas" value={visitsConfirmed} icon={CalendarCheck2} />
+          <StatCard label="Visitas canceladas" value={visitsCancelled} icon={CalendarX2} tone="neutral" />
         </div>
-        <div>
-          <label className="block text-sm font-medium">Nombre de contacto</label>
-          <input
-            name="contactName"
-            defaultValue={agency.contactName ?? ""}
-            className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <ZoneCheckboxes selected={agency.zones} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Estado</label>
-          <select
-            name="status"
-            defaultValue={agency.status}
-            className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
-          >
-            <option value="active">Activa</option>
-            <option value="paused">Pausada</option>
-          </select>
-        </div>
-        <div className="sm:col-span-2">
-          <button
-            type="submit"
-            className="rounded-full bg-[var(--verde-profundo)] px-4 py-2 text-sm font-medium text-white"
-          >
-            Guardar cambios
-          </button>
-        </div>
-      </form>
+      </div>
 
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">
-        Historial de propuestas ({proposalRows.length})
-      </p>
-      <div className="mt-2 rounded-xl border border-[var(--tinta)]/10 bg-white">
-        {proposalRows.length === 0 ? (
-          <p className="p-5 text-sm text-[var(--tinta)]/50">Todavía no mandó ninguna propuesta.</p>
-        ) : (
-          <ul className="divide-y divide-[var(--tinta)]/10">
-            {proposalRows.map(({ proposal, searchOperation, searchZones }) => (
-              <li key={proposal.id} className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
-                <div>
-                  <p>
-                    {proposal.zoneLabel ?? "Sin zona"} ·{" "}
-                    {proposal.price != null ? formatMoney(proposal.price, searchOperation) : "sin precio"}
-                  </p>
-                  <p className="text-xs text-[var(--tinta)]/50">
-                    {proposal.createdAt.toLocaleString("es-AR")} · búsqueda en {searchZones.join(", ") || "sin especificar"}
-                    {proposal.matchScore !== null ? ` · ${proposal.matchScore}% match` : ""}
-                  </p>
-                </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs ${statusColor(proposal.status)}`}>
-                  {statusLabel(proposal.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div>
+        <SectionLabel>Editar</SectionLabel>
+        <Card className="mt-3">
+          <form action={updateWithId} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-[var(--tinta)]/80">Nombre</label>
+              <input
+                name="name"
+                defaultValue={agency.name}
+                required
+                className="mt-1.5 w-full rounded-xl border border-[var(--tinta)]/15 p-2.5 text-sm outline-none focus:border-[var(--verde)] focus:ring-2 focus:ring-[var(--verde-claro)]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--tinta)]/80">Nombre de contacto</label>
+              <input
+                name="contactName"
+                defaultValue={agency.contactName ?? ""}
+                className="mt-1.5 w-full rounded-xl border border-[var(--tinta)]/15 p-2.5 text-sm outline-none focus:border-[var(--verde)] focus:ring-2 focus:ring-[var(--verde-claro)]"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <ZoneCheckboxes selected={agency.zones} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--tinta)]/80">Estado</label>
+              <select
+                name="status"
+                defaultValue={agency.status}
+                className="mt-1.5 w-full rounded-xl border border-[var(--tinta)]/15 bg-white p-2.5 text-sm outline-none focus:border-[var(--verde)] focus:ring-2 focus:ring-[var(--verde-claro)]"
+              >
+                <option value="active">Activa</option>
+                <option value="paused">Pausada</option>
+              </select>
+            </div>
+            <div className="flex items-end sm:col-span-2">
+              <button
+                type="submit"
+                className="rounded-full bg-[var(--verde-profundo)] px-5 py-2.5 text-sm font-medium text-white"
+              >
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        </Card>
+      </div>
+
+      <div>
+        <SectionLabel>Historial de propuestas ({proposalRows.length})</SectionLabel>
+        <Card className="mt-3" padded={false}>
+          {proposalRows.length === 0 ? (
+            <EmptyState icon={Inbox} text="Todavía no mandó ninguna propuesta." />
+          ) : (
+            <ul className="divide-y divide-[var(--tinta)]/8">
+              {proposalRows.map(({ proposal, searchOperation, searchZones }) => (
+                <li key={proposal.id} className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
+                  <div>
+                    <p className="font-medium text-[var(--tinta)]">
+                      {proposal.zoneLabel ?? "Sin zona"} ·{" "}
+                      {proposal.price != null ? formatMoney(proposal.price, searchOperation) : "sin precio"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--tinta)]/50">
+                      {proposal.createdAt.toLocaleString("es-AR")} · búsqueda en{" "}
+                      {searchZones.join(", ") || "sin especificar"}
+                      {proposal.matchScore !== null ? ` · ${proposal.matchScore}% match` : ""}
+                    </p>
+                  </div>
+                  <Badge variant={statusVariant(proposal.status)}>{statusLabel(proposal.status)}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
     </div>
   );

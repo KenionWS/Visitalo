@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { desc } from "drizzle-orm";
+import { ChevronRight, Plus, Building2 } from "lucide-react";
 import { db } from "@/db";
 import { agencies } from "@/db/schema";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { Card } from "@/components/admin/Card";
+import { Badge } from "@/components/admin/Badge";
+import { EmptyState } from "@/components/admin/EmptyState";
 import { createAgency } from "./actions";
 import { ZoneCheckboxes } from "./ZoneCheckboxes";
 
@@ -9,80 +14,81 @@ export default async function AgenciesPage() {
   const rows = await db.select().from(agencies).orderBy(desc(agencies.createdAt));
 
   return (
-    <div>
-      <h1 className="font-display text-2xl text-[var(--tinta)]">Inmobiliarias</h1>
+    <div className="space-y-6">
+      <PageHeader title="Inmobiliarias" description={`${rows.length} dadas de alta`} />
 
-      <form
-        action={createAgency}
-        className="mt-6 grid grid-cols-1 gap-3 rounded-xl border border-[var(--tinta)]/10 bg-white p-5 sm:grid-cols-2"
-      >
-        <div>
-          <label className="block text-sm font-medium">Teléfono (WhatsApp)</label>
-          <input
-            name="phone"
-            required
-            placeholder="5491122334455"
-            className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Nombre de la inmobiliaria</label>
-          <input
-            name="name"
-            required
-            className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Nombre de contacto (opcional)</label>
-          <input
-            name="contactName"
-            className="mt-1 w-full rounded-lg border border-[var(--tinta)]/20 p-2 text-sm"
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <ZoneCheckboxes selected={[]} />
-        </div>
-        <div className="sm:col-span-2">
-          <button
-            type="submit"
-            className="rounded-full bg-[var(--verde-profundo)] px-4 py-2 text-sm font-medium text-white"
-          >
-            Dar de alta
-          </button>
-        </div>
-      </form>
+      <details className="group rounded-2xl border border-[var(--tinta)]/8 bg-white shadow-sm shadow-black/[0.02] open:shadow-md">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 text-sm font-medium text-[var(--verde-profundo)]">
+          <Plus size={16} strokeWidth={2.5} className="transition-transform group-open:rotate-45" />
+          Dar de alta una inmobiliaria
+        </summary>
 
-      <ul className="mt-6 divide-y divide-[var(--tinta)]/10 rounded-xl border border-[var(--tinta)]/10 bg-white">
-        {rows.length === 0 && (
-          <li className="p-5 text-sm text-[var(--tinta)]/50">Todavía no diste de alta inmobiliarias.</li>
+        <form action={createAgency} className="grid grid-cols-1 gap-3 border-t border-[var(--tinta)]/8 p-5 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-[var(--tinta)]/80">Teléfono (WhatsApp)</label>
+            <input
+              name="phone"
+              required
+              placeholder="5491122334455"
+              className="mt-1.5 w-full rounded-xl border border-[var(--tinta)]/15 p-2.5 text-sm outline-none focus:border-[var(--verde)] focus:ring-2 focus:ring-[var(--verde-claro)]"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--tinta)]/80">Nombre de la inmobiliaria</label>
+            <input
+              name="name"
+              required
+              className="mt-1.5 w-full rounded-xl border border-[var(--tinta)]/15 p-2.5 text-sm outline-none focus:border-[var(--verde)] focus:ring-2 focus:ring-[var(--verde-claro)]"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--tinta)]/80">Nombre de contacto (opcional)</label>
+            <input
+              name="contactName"
+              className="mt-1.5 w-full rounded-xl border border-[var(--tinta)]/15 p-2.5 text-sm outline-none focus:border-[var(--verde)] focus:ring-2 focus:ring-[var(--verde-claro)]"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <ZoneCheckboxes selected={[]} />
+          </div>
+          <div className="sm:col-span-2">
+            <button
+              type="submit"
+              className="rounded-full bg-[var(--verde-profundo)] px-5 py-2.5 text-sm font-medium text-white"
+            >
+              Dar de alta
+            </button>
+          </div>
+        </form>
+      </details>
+
+      <Card padded={false}>
+        {rows.length === 0 ? (
+          <EmptyState icon={Building2} text="Todavía no diste de alta inmobiliarias." />
+        ) : (
+          <ul className="divide-y divide-[var(--tinta)]/8">
+            {rows.map((a) => (
+              <li key={a.id}>
+                <Link
+                  href={`/admin/agencies/${a.id}`}
+                  className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-[var(--fondo)]/60"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-[var(--tinta)]">{a.name}</p>
+                    <p className="mt-0.5 truncate text-sm text-[var(--tinta)]/55">
+                      {a.phone} · {a.zones.join(", ") || "sin zonas"} · créditos: {a.creditsFree - a.creditsUsed} libres
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <Badge variant={a.status === "active" ? "success" : "neutral"}>{a.status}</Badge>
+                    <ChevronRight size={18} className="text-[var(--tinta)]/30" />
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
-        {rows.map((a) => (
-          <li key={a.id} className="flex items-center justify-between p-4">
-            <div>
-              <p className="font-medium">{a.name}</p>
-              <p className="text-sm text-[var(--tinta)]/60">
-                {a.phone} · {a.zones.join(", ") || "sin zonas"} · créditos:{" "}
-                {a.creditsFree - a.creditsUsed} libres
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs ${
-                  a.status === "active"
-                    ? "bg-[var(--verde-claro)] text-[var(--verde-profundo)]"
-                    : "bg-black/5 text-[var(--tinta)]/60"
-                }`}
-              >
-                {a.status}
-              </span>
-              <Link href={`/admin/agencies/${a.id}`} className="text-sm text-[var(--verde-profundo)] underline">
-                Ver perfil
-              </Link>
-            </div>
-          </li>
-        ))}
-      </ul>
+      </Card>
     </div>
   );
 }

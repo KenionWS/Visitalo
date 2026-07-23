@@ -1,18 +1,25 @@
-import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, jobs, proposals, relayThreads, searches, visits } from "@/db/schema";
-
-function StatCard({ label, value, href }: { label: string; value: number | string; href?: string }) {
-  const content = (
-    <div className="rounded-xl border border-[var(--tinta)]/10 bg-white p-5">
-      <p className="text-sm text-[var(--tinta)]/60">{label}</p>
-      <p className="mt-1 font-display text-3xl">{value}</p>
-      {href && <span className="mt-2 inline-block text-sm text-[var(--verde-profundo)] underline">Ver</span>}
-    </div>
-  );
-  return href ? <Link href={href}>{content}</Link> : content;
-}
+import { PageHeader, SectionLabel } from "@/components/admin/PageHeader";
+import { StatCard } from "@/components/admin/StatCard";
+import { Card } from "@/components/admin/Card";
+import { EmptyState } from "@/components/admin/EmptyState";
+import {
+  Search,
+  Home,
+  KeyRound,
+  ClipboardList,
+  Building2,
+  CreditCard,
+  CalendarClock,
+  CalendarCheck2,
+  CalendarX2,
+  MessageSquareText,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
 
 export default async function AdminHome() {
   const activeAgencies = await db.select({ id: agencies.id }).from(agencies).where(eq(agencies.status, "active"));
@@ -51,62 +58,74 @@ export default async function AdminHome() {
     .orderBy(jobs.createdAt);
 
   return (
-    <div>
-      <h1 className="font-display text-2xl text-[var(--tinta)]">Panel</h1>
+    <div className="space-y-8">
+      <PageHeader title="Panel" description="Estado general de Visitalo en producción." />
 
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">Búsquedas</p>
-      <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Búsquedas activas" value={activeSearchRows.length} />
-        <StatCard label="Venta" value={ventaCount} />
-        <StatCard label="Alquiler" value={alquilerCount} />
+      <div>
+        <SectionLabel>Búsquedas</SectionLabel>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="Búsquedas activas" value={activeSearchRows.length} icon={Search} />
+          <StatCard label="Venta" value={ventaCount} icon={Home} tone="neutral" />
+          <StatCard label="Alquiler" value={alquilerCount} icon={KeyRound} tone="neutral" />
+        </div>
       </div>
 
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">
-        Propuestas e inmobiliarias
-      </p>
-      <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Propuestas por revisar"
-          value={pendingProposals.length}
-          href={pendingProposals.length > 0 ? "/admin/proposals" : undefined}
-        />
-        <StatCard label="Inmobiliarias activas" value={activeAgencies.length} href="/admin/agencies" />
-        <StatCard label="Créditos usados" value={`${totalCreditsUsed} / ${totalCreditsFree}`} />
+      <div>
+        <SectionLabel>Propuestas e inmobiliarias</SectionLabel>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Propuestas por revisar"
+            value={pendingProposals.length}
+            icon={ClipboardList}
+            tone={pendingProposals.length > 0 ? "ambar" : "verde"}
+            href={pendingProposals.length > 0 ? "/admin/proposals" : undefined}
+          />
+          <StatCard label="Inmobiliarias activas" value={activeAgencies.length} icon={Building2} href="/admin/agencies" />
+          <StatCard label="Créditos usados" value={`${totalCreditsUsed} / ${totalCreditsFree}`} icon={CreditCard} tone="neutral" />
+        </div>
       </div>
 
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">Visitas</p>
-      <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Solicitadas" value={visitsRequested} />
-        <StatCard label="Confirmadas" value={visitsConfirmed} />
-        <StatCard label="Canceladas" value={visitsCancelled} />
+      <div>
+        <SectionLabel>Visitas</SectionLabel>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="Solicitadas" value={visitsRequested} icon={CalendarClock} tone="ambar" />
+          <StatCard label="Confirmadas" value={visitsConfirmed} icon={CalendarCheck2} />
+          <StatCard label="Canceladas" value={visitsCancelled} icon={CalendarX2} tone="neutral" />
+        </div>
       </div>
 
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">
-        Relay de preguntas
-      </p>
-      <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <StatCard label="Respondidas" value={relayAnswered} />
-        <StatCard label="Esperando respuesta" value={relayPending} />
+      <div>
+        <SectionLabel>Relay de preguntas</SectionLabel>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <StatCard label="Respondidas" value={relayAnswered} icon={MessageSquareText} />
+          <StatCard label="Esperando respuesta" value={relayPending} icon={Clock} tone="ambar" />
+        </div>
       </div>
 
-      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">
-        Jobs fallidos ({failedJobs.length})
-      </p>
-      <div className="mt-2 rounded-xl border border-[var(--tinta)]/10 bg-white">
-        {failedJobs.length === 0 ? (
-          <p className="p-5 text-sm text-[var(--tinta)]/50">Ninguno — todo está procesándose bien.</p>
-        ) : (
-          <ul className="divide-y divide-[var(--tinta)]/10">
-            {failedJobs.map((job) => (
-              <li key={job.id} className="p-4 text-sm">
-                <p className="font-medium">
-                  {job.type} <span className="font-normal text-[var(--tinta)]/50">· {job.createdAt.toLocaleString("es-AR")}</span>
-                </p>
-                <p className="mt-1 break-words text-[var(--tinta)]/70">{job.lastError}</p>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div>
+        <SectionLabel>Jobs fallidos ({failedJobs.length})</SectionLabel>
+        <Card className="mt-3" padded={false}>
+          {failedJobs.length === 0 ? (
+            <EmptyState icon={CheckCircle2} text="Ninguno — todo está procesándose bien." />
+          ) : (
+            <ul className="divide-y divide-[var(--tinta)]/8">
+              {failedJobs.map((job) => (
+                <li key={job.id} className="flex gap-3 p-4 text-sm">
+                  <AlertTriangle size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-red-500" />
+                  <div className="min-w-0">
+                    <p className="font-medium text-[var(--tinta)]">
+                      {job.type}{" "}
+                      <span className="font-normal text-[var(--tinta)]/45">
+                        · {job.createdAt.toLocaleString("es-AR")}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 break-words text-[var(--tinta)]/60">{job.lastError}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
     </div>
   );
