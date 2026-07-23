@@ -4,6 +4,7 @@ import { MessageCircle, Users, Heart, CalendarCheck2, ShieldCheck, Lock } from "
 import { Reveal } from "@/components/Reveal";
 import { ScrollySteps } from "@/components/ScrollySteps";
 import { Faq } from "@/components/Faq";
+import { ChatSim, type ChatMessage } from "@/components/ChatSim";
 
 type Step = { icon: React.ReactNode; title: string; body: string };
 
@@ -41,6 +42,15 @@ const STEPS: Step[] = [
     title: "Recién ahí se comparten los datos",
     body: "Hasta que no confirmás una visita, tu teléfono no llega a ninguna inmobiliaria. Cuando confirmás, ahí sí se intercambian los contactos para coordinar la dirección exacta.",
   },
+];
+
+const CHAT_MESSAGES: ChatMessage[] = [
+  { from: "me", text: "Hola! Busco depto de 2 ambientes en Caballito, alquiler hasta $350.000 por mes" },
+  { from: "them", text: "¡Hola! 👋 Buenísimo, ya tengo zona y presupuesto. ¿Buscás algo en particular, tipo balcón o cochera?" },
+  { from: "me", text: "Con balcón si se puede" },
+  { from: "them", text: "Así quedaría: Caballito, alquiler hasta $350.000, 2 ambientes, con balcón si se puede. ¿Confirmás?" },
+  { from: "me", text: "Sí" },
+  { from: "them", text: "¡Listo! 🎉 Tu búsqueda ya está activa. Te aviso apenas tengamos propuestas — mirá tu shortlist acá: visitalo.com.ar/s/8a3f..." },
 ];
 
 const COMPARISON = {
@@ -162,7 +172,7 @@ export default function Home() {
               <ScrollySteps stepCount={STEPS.length}>
                 {STEPS.map((step) => (
                   <div key={step.title} data-scrolly-step className="scroll-mt-28">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--verde-claro)] text-[var(--verde-profundo)] md:hidden">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--verde-claro)] text-[var(--verde-profundo)]">
                       {step.icon}
                     </div>
                     <p className="mt-3 font-display text-2xl text-[var(--tinta)] md:mt-0">{step.title}</p>
@@ -171,6 +181,20 @@ export default function Home() {
                 ))}
               </ScrollySteps>
             </div>
+          </div>
+        </section>
+
+        <section className="px-5 py-16 sm:py-24">
+          <div className="mx-auto max-w-4xl">
+            <Reveal className="text-center">
+              <h2 className="font-display text-2xl text-[var(--tinta)] sm:text-3xl">Así es la conversación</h2>
+              <p className="mx-auto mt-3 max-w-md text-[var(--tinta)]/60">
+                Un ejemplo real de cómo arranca todo, de punta a punta.
+              </p>
+            </Reveal>
+            <Reveal delay={100} className="mt-10">
+              <ChatSim messages={CHAT_MESSAGES} />
+            </Reveal>
           </div>
         </section>
 

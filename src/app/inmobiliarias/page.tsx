@@ -4,6 +4,7 @@ import { MessageCircle, ClipboardCheck, Inbox, Send, CheckCircle2 } from "lucide
 import { Reveal } from "@/components/Reveal";
 import { ScrollySteps } from "@/components/ScrollySteps";
 import { Faq } from "@/components/Faq";
+import { ChatSim, type ChatMessage } from "@/components/ChatSim";
 import { AgencyLeadForm } from "./AgencyLeadForm";
 
 export const metadata: Metadata = {
@@ -41,6 +42,18 @@ const STEPS: Step[] = [
     title: "Visita agendada",
     body: "El comprador elige tu propuesta y pide visita. Recién ahí se desbloquea el contacto entre las dos partes.",
   },
+];
+
+const CHAT_MESSAGES: ChatMessage[] = [
+  {
+    from: "them",
+    text: "Tenés un comprador activo que busca alquilar en Caballito. Presupuesto: hasta $350.000. Busca: balcón. Contanos qué tenés — precio, m², ambientes y características. Si no tenés nada, respondé \"paso\".",
+  },
+  { from: "me", text: "Tengo un 2 ambientes en Caballito, 45m², $340.000, con balcón, muy luminoso" },
+  { from: "them", text: "¡Gracias! Ya se lo mostramos al comprador." },
+  { from: "them", text: "Le interesó y pidió coordinar una visita. ¿Qué días y horarios te quedan bien? Pasame 2 o 3 opciones." },
+  { from: "me", text: "Sábado 15hs o domingo 11hs" },
+  { from: "them", text: "Buenísimo, se lo paso para que elija 👍" },
 ];
 
 const PROBLEM = {
@@ -170,7 +183,7 @@ export default function InmobiliariasPage() {
               <ScrollySteps stepCount={STEPS.length}>
                 {STEPS.map((step) => (
                   <div key={step.title} data-scrolly-step className="scroll-mt-28">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--verde-claro)] text-[var(--verde-profundo)] md:hidden">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--verde-claro)] text-[var(--verde-profundo)]">
                       {step.icon}
                     </div>
                     <p className="mt-3 font-display text-2xl text-[var(--tinta)] md:mt-0">{step.title}</p>
@@ -179,6 +192,20 @@ export default function InmobiliariasPage() {
                 ))}
               </ScrollySteps>
             </div>
+          </div>
+        </section>
+
+        <section className="px-5 py-16 sm:py-24">
+          <div className="mx-auto max-w-4xl">
+            <Reveal className="text-center">
+              <h2 className="font-display text-2xl text-[var(--tinta)] sm:text-3xl">Así te llega a vos</h2>
+              <p className="mx-auto mt-3 max-w-md text-[var(--tinta)]/60">
+                Un ejemplo real de cómo es la conversación, de la ficha a la visita agendada.
+              </p>
+            </Reveal>
+            <Reveal delay={100} className="mt-10">
+              <ChatSim messages={CHAT_MESSAGES} />
+            </Reveal>
           </div>
         </section>
 
