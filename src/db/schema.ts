@@ -83,6 +83,7 @@ export const proposals = pgTable("proposals", {
   attributes: jsonb("attributes").$type<Record<string, unknown>>(),
   description: text("description"), // redactada por LLM, sin PII
   photos: text("photos").array().notNull().default([]),
+  photoWarning: text("photo_warning"), // detectó un LLM de visión un posible dato de contacto en alguna foto — revisar antes de publicar
   sourceRaw: jsonb("source_raw").$type<Record<string, unknown>>(), // mensajes originales de la inmobiliaria
   matchScore: integer("match_score"), // fórmula simple 0-100
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

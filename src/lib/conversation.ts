@@ -14,6 +14,7 @@ export type ConversationContext = {
   pendingField?: string;
   pendingQuestion?: string;
   pendingVisitId?: string;
+  pendingVisitOptions?: string[];
 };
 
 type SearchRow = typeof searches.$inferSelect;

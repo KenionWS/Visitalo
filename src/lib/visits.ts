@@ -1,9 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, buyers, conversations, proposals, searches, visits } from "@/db/schema";
-import { parseVisitDateTime } from "./llm";
+import { parseVisitDateTimes, parseVisitOptionChoice } from "./llm";
 import { sendText } from "./whatsapp";
-import { parseYesNo, formatMoney } from "./text";
+import { parseYesNo, normalizeWords, formatMoney } from "./text";
 import { enqueueJob } from "./queue";
 
 /**
@@ -17,9 +17,22 @@ type AgencyConversationContext = Record<string, unknown> & {
 
 type BuyerConversationContext = Record<string, unknown> & {
   pendingVisitId?: string;
+  pendingVisitOptions?: string[];
 };
 
 const FOLLOWUP_DELAY_MS = 3 * 24 * 60 * 60 * 1000;
+const MAX_VISIT_OPTIONS = 3;
+const NONE_WORDS = new Set(["ninguna", "ninguno", "ningun"]);
+
+function isNoneOfTheOptions(text: string): boolean {
+  if (parseYesNo(text) === "no") return true;
+  const words = new Set(normalizeWords(text));
+  return [...NONE_WORDS].some((w) => words.has(w));
+}
+
+function formatVisitOptionsList(dates: Date[]): string {
+  return dates.map((d, i) => `${i + 1}) ${formatVisitDateTime(d)}`).join("\n");
+}
 
 async function getVisitDetails(visitId: string) {
   const [visit] = await db.select().from(visits).where(eq(visits.id, visitId)).limit(1);
@@ -97,7 +110,7 @@ export async function notifyAgencyOfVisitRequest(visitId: string): Promise<void>
 
   await sendText(
     agency.phone,
-    `Un comprador pidió coordinar una visita a la propiedad en ${proposal.zoneLabel ?? "tu zona"} (${formatMoney(proposal.price, search.operation)}).\n\n¿Qué día y horario te queda bien? Contestá con la fecha y hora.`
+    `Un comprador pidió coordinar una visita a la propiedad en ${proposal.zoneLabel ?? "tu zona"} (${formatMoney(proposal.price, search.operation)}).\n\n¿Qué días y horarios te quedarían bien? Si podés, pasame 2 o 3 opciones para que el comprador elija.`
   );
 
   const conversation = await getOrCreateAgencyConversation(agency.phone);
@@ -130,17 +143,18 @@ export async function handleAgencyVisitDateReply(
   }
   const { visit, agency, buyer } = details;
 
-  const scheduledAt = await parseVisitDateTime(text, new Date());
-  if (!scheduledAt) {
-    await sendText(agency.phone, 'No entendí bien la fecha, ¿podés escribirla de nuevo? Ej: "jueves 15hs".');
+  const options = (await parseVisitDateTimes(text, new Date())).slice(0, MAX_VISIT_OPTIONS);
+  if (options.length === 0) {
+    await sendText(
+      agency.phone,
+      'No entendí bien la fecha, ¿podés escribirla de nuevo? Ej: "jueves 15hs" (podés pasar más de una opción).'
+    );
     return;
   }
 
-  await db.update(visits).set({ scheduledAt }).where(eq(visits.id, visit.id));
-
   await sendText(
     buyer.phone,
-    `La inmobiliaria propone visitar la propiedad el ${formatVisitDateTime(scheduledAt)}. ¿Te sirve? Respondé sí o no.`
+    `La inmobiliaria puede estos días para visitar la propiedad:\n${formatVisitOptionsList(options)}\n\nRespondé con el número que te sirva, o "ninguna" si no te queda ninguna.`
   );
 
   const buyerConversation = await getOrCreateBuyerConversation(buyer.phone);
@@ -148,7 +162,11 @@ export async function handleAgencyVisitDateReply(
   await db
     .update(conversations)
     .set({
-      context: { ...buyerContext, pendingVisitId: visit.id },
+      context: {
+        ...buyerContext,
+        pendingVisitId: visit.id,
+        pendingVisitOptions: options.map((d) => d.toISOString()),
+      },
       updatedAt: new Date(),
     })
     .where(eq(conversations.id, buyerConversation.id));
@@ -159,7 +177,7 @@ export async function handleAgencyVisitDateReply(
     .where(eq(conversations.id, conversationId));
 }
 
-/** Recibe la confirmación (o rechazo) del comprador sobre la fecha propuesta; si confirma, cobra el crédito y hace el intercambio de contacto. */
+/** Recibe la elección (o rechazo) del comprador entre las opciones de horario; si elige una, cobra el crédito y hace el intercambio de contacto. */
 export async function handleBuyerVisitConfirmReply(
   conversationId: string,
   context: BuyerConversationContext,
@@ -169,39 +187,52 @@ export async function handleBuyerVisitConfirmReply(
   const visitId = context.pendingVisitId;
   if (!visitId) return;
 
+  const optionIsos = context.pendingVisitOptions ?? [];
   const details = await getVisitDetails(visitId);
-  if (!details || details.visit.status !== "requested" || !details.visit.scheduledAt) {
+  if (!details || details.visit.status !== "requested" || optionIsos.length === 0) {
     await db
       .update(conversations)
-      .set({ context: { ...context, pendingVisitId: undefined }, updatedAt: new Date() })
+      .set({
+        context: { ...context, pendingVisitId: undefined, pendingVisitOptions: undefined },
+        updatedAt: new Date(),
+      })
       .where(eq(conversations.id, conversationId));
     return;
   }
   const { visit, agency, buyer } = details;
+  const options = optionIsos.map((iso) => new Date(iso));
 
-  const answer = parseYesNo(text);
-
-  if (answer === null) {
-    await sendText(phone, "Respondé sí o no: ¿te sirve el horario que propuso la inmobiliaria?");
-    return;
-  }
-
-  if (answer === "no") {
+  if (isNoneOfTheOptions(text)) {
     await db.update(visits).set({ status: "cancelled" }).where(eq(visits.id, visit.id));
-    await sendText(
-      phone,
-      "Dale, no hay problema. Si querés coordinar otro horario, pedí la visita de nuevo desde tu shortlist."
-    );
+    await sendText(phone, "Dale, no hay problema. Le avisamos a la inmobiliaria para que proponga otros horarios.");
     await sendText(
       agency.phone,
-      "El comprador no puede en ese horario. Si te contacta de nuevo para coordinar, te avisamos."
+      "Ninguno de esos horarios le sirve al comprador. Si tenés otras opciones, proponé de nuevo."
     );
     await db
       .update(conversations)
-      .set({ context: { ...context, pendingVisitId: undefined }, updatedAt: new Date() })
+      .set({
+        context: { ...context, pendingVisitId: undefined, pendingVisitOptions: undefined },
+        updatedAt: new Date(),
+      })
       .where(eq(conversations.id, conversationId));
     return;
   }
+
+  const chosenIndex = await parseVisitOptionChoice(
+    text,
+    options.map((d) => formatVisitDateTime(d))
+  );
+  if (chosenIndex === null) {
+    await sendText(
+      phone,
+      `Respondé con el número de la opción que te sirva (1 a ${options.length}), o "ninguna" si no te queda ninguna.`
+    );
+    return;
+  }
+
+  const scheduledAt = options[chosenIndex - 1];
+  await db.update(visits).set({ scheduledAt }).where(eq(visits.id, visit.id));
 
   await db
     .update(agencies)
@@ -213,18 +244,21 @@ export async function handleBuyerVisitConfirmReply(
   const agencyContact = agency.contactName ? `${agency.name} (${agency.contactName})` : agency.name;
   await sendText(
     phone,
-    `¡Visita confirmada! Coordiná los detalles finales directo con la inmobiliaria: ${agencyContact} — ${agency.phone}`
+    `¡Visita confirmada para el ${formatVisitDateTime(scheduledAt)}! Coordiná los detalles finales directo con la inmobiliaria: ${agencyContact} — ${agency.phone}`
   );
   await sendText(
     agency.phone,
-    `¡Visita confirmada! Coordiná los detalles finales directo con el comprador: ${buyer.phone}`
+    `¡Visita confirmada para el ${formatVisitDateTime(scheduledAt)}! Coordiná los detalles finales directo con el comprador: ${buyer.phone}`
   );
 
   await enqueueJob("visit.followup", { visitId: visit.id }, new Date(Date.now() + FOLLOWUP_DELAY_MS));
 
   await db
     .update(conversations)
-    .set({ context: { ...context, pendingVisitId: undefined }, updatedAt: new Date() })
+    .set({
+      context: { ...context, pendingVisitId: undefined, pendingVisitOptions: undefined },
+      updatedAt: new Date(),
+    })
     .where(eq(conversations.id, conversationId));
 }
 

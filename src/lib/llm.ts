@@ -5,6 +5,7 @@ import { buildSearchExtractionSystemPrompt, type PendingQuestion } from "../../p
 import { buildProposalNormalizationSystemPrompt } from "../../prompts/proposal-normalization";
 import { buildRelayRedactionSystemPrompt } from "../../prompts/relay-redaction";
 import { buildVisitDateTimeSystemPrompt } from "../../prompts/visit-datetime";
+import { buildVisitOptionChoiceSystemPrompt } from "../../prompts/visit-option-choice";
 
 const MODEL = "claude-opus-4-8";
 
@@ -168,35 +169,109 @@ export async function redactRelayMessage(
   return textBlock?.text?.trim() || null;
 }
 
-const VisitDateTimeSchema = z.object({
-  scheduled_at: z
-    .string()
-    .nullable()
-    .describe("Timestamp ISO 8601 de la fecha/horario propuesto, o null si no se puede interpretar"),
+const VisitDateTimesSchema = z.object({
+  options: z
+    .array(z.string())
+    .describe("Timestamps ISO 8601 de cada fecha/horario propuesto que se pudo interpretar con claridad, en orden"),
 });
 
 /**
- * Interpreta la fecha/horario propuesto para una visita a partir de texto
- * libre. Devuelve null si no hay ANTHROPIC_API_KEY, si el modelo no pudo
- * interpretar nada, o si el timestamp devuelto no es válido.
+ * Interpreta una o varias fechas/horarios propuestos para una visita a
+ * partir de texto libre. Devuelve una lista vacía si no hay
+ * ANTHROPIC_API_KEY, si el modelo no pudo interpretar nada, o si ningún
+ * timestamp devuelto es válido.
  */
-export async function parseVisitDateTime(message: string, referenceDate: Date): Promise<Date | null> {
+export async function parseVisitDateTimes(message: string, referenceDate: Date): Promise<Date[]> {
   if (!isConfigured()) {
     console.warn("[llm] ANTHROPIC_API_KEY no configurada. No se puede interpretar la fecha de la visita.");
+    return [];
+  }
+
+  const response = await client().messages.parse({
+    model: MODEL,
+    max_tokens: 512,
+    system: buildVisitDateTimeSystemPrompt(referenceDate.toISOString()),
+    messages: [{ role: "user", content: message }],
+    output_config: { format: zodOutputFormat(VisitDateTimesSchema) },
+  });
+
+  const raw = response.parsed_output?.options ?? [];
+  return raw
+    .map((iso) => new Date(iso))
+    .filter((d) => !Number.isNaN(d.getTime()));
+}
+
+const VisitOptionChoiceSchema = z.object({
+  chosen_index: z
+    .number()
+    .int()
+    .nullable()
+    .describe("Número (1-based) de la opción elegida, o null si no eligió ninguna con claridad"),
+});
+
+/**
+ * Interpreta cuál de las opciones de horario (ya formateadas como texto)
+ * eligió el comprador. Devuelve null si no hay ANTHROPIC_API_KEY, si el
+ * modelo no pudo determinarlo, o si el índice devuelto está fuera de rango.
+ */
+export async function parseVisitOptionChoice(message: string, options: string[]): Promise<number | null> {
+  if (!isConfigured()) {
+    console.warn("[llm] ANTHROPIC_API_KEY no configurada. No se puede interpretar la elección de horario.");
     return null;
   }
 
   const response = await client().messages.parse({
     model: MODEL,
-    max_tokens: 256,
-    system: buildVisitDateTimeSystemPrompt(referenceDate.toISOString()),
+    max_tokens: 128,
+    system: buildVisitOptionChoiceSystemPrompt(options),
     messages: [{ role: "user", content: message }],
-    output_config: { format: zodOutputFormat(VisitDateTimeSchema) },
+    output_config: { format: zodOutputFormat(VisitOptionChoiceSchema) },
   });
 
-  const raw = response.parsed_output?.scheduled_at;
-  if (!raw) return null;
+  const idx = response.parsed_output?.chosen_index;
+  if (idx == null || idx < 1 || idx > options.length) return null;
+  return idx;
+}
 
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+/**
+ * Chequea con un LLM de visión si una imagen muestra un dato de contacto
+ * directo (teléfono, email, usuario de redes, cartel con esos datos).
+ * Devuelve una descripción breve si detectó algo, o null si no vio nada o
+ * no hay ANTHROPIC_API_KEY. Es un chequeo best-effort para alertar al admin
+ * antes de publicar, no un filtro automático que edite la imagen.
+ */
+export async function detectContactInfoInImage(
+  buffer: Buffer,
+  contentType: string
+): Promise<string | null> {
+  if (!isConfigured()) return null;
+
+  try {
+    const response = await client().messages.create({
+      model: MODEL,
+      max_tokens: 200,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: contentType as "image/jpeg", data: buffer.toString("base64") },
+            },
+            {
+              type: "text",
+              text: '¿Esta imagen muestra un teléfono, email, usuario de redes sociales, o cualquier otro dato de contacto directo, visible como texto, marca de agua o cartel? Respondé SOLO "SI: <qué viste, en pocas palabras>" o "NO".',
+            },
+          ],
+        },
+      ],
+    });
+
+    const textBlock = response.content.find((b) => b.type === "text");
+    const answer = textBlock?.text?.trim() ?? "";
+    return answer.toUpperCase().startsWith("SI") ? answer : null;
+  } catch (err) {
+    console.error("[llm] no se pudo chequear la imagen por datos de contacto:", err);
+    return null;
+  }
 }

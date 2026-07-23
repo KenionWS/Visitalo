@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { agencies, buyers, conversations, proposals, relayThreads, searches } from "@/db/schema";
 import { redactRelayMessage } from "./llm";
 import { sendText } from "./whatsapp";
+import { stripLikelyContactInfo } from "./text";
 
 /**
  * Módulo hoja: no importa conversation.ts ni agency-conversation.ts para
@@ -51,11 +52,15 @@ export async function sendRelayQuestionToAgency(relayThreadId: string): Promise<
   if (!details) return;
   const { thread, agency } = details;
 
-  const redacted = await redactRelayMessage(thread.question, "comprador_a_inmobiliaria");
-  if (!redacted) {
+  const redactedByLlm = await redactRelayMessage(thread.question, "comprador_a_inmobiliaria");
+  if (!redactedByLlm) {
     throw new Error(
       "No se pudo redactar la pregunta del relay: ANTHROPIC_API_KEY no configurada o el modelo no respondió."
     );
+  }
+  const redacted = stripLikelyContactInfo(redactedByLlm);
+  if (redacted !== redactedByLlm) {
+    console.warn(`[relay] la red de seguridad tapó algo que el LLM había dejado pasar (thread ${thread.id})`);
   }
 
   await sendText(
@@ -93,11 +98,15 @@ export async function handleAgencyRelayAnswer(
   }
   const { thread, agency, buyer } = details;
 
-  const redacted = await redactRelayMessage(text, "inmobiliaria_a_comprador");
-  if (!redacted) {
+  const redactedByLlm = await redactRelayMessage(text, "inmobiliaria_a_comprador");
+  if (!redactedByLlm) {
     throw new Error(
       "No se pudo redactar la respuesta del relay: ANTHROPIC_API_KEY no configurada o el modelo no respondió."
     );
+  }
+  const redacted = stripLikelyContactInfo(redactedByLlm);
+  if (redacted !== redactedByLlm) {
+    console.warn(`[relay] la red de seguridad tapó algo que el LLM había dejado pasar (thread ${thread.id})`);
   }
 
   await db

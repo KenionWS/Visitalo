@@ -51,8 +51,27 @@ export default async function ProposalsQueuePage() {
                 </span>
               </div>
 
+              {proposal.photoWarning && (
+                <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                  ⚠️ Posible dato de contacto visible en una foto: {proposal.photoWarning}
+                </p>
+              )}
+
               <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
+                  {proposal.photos.length > 0 && (
+                    <div className="mb-3 flex gap-2 overflow-x-auto">
+                      {proposal.photos.map((url) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={url}
+                          src={url}
+                          alt="Foto de la propiedad"
+                          className="h-20 w-20 flex-shrink-0 rounded-lg object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
                   <p className="text-xs font-medium uppercase tracking-wide text-[var(--tinta)]/40">
                     Mensaje original
                   </p>

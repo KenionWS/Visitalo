@@ -1,7 +1,7 @@
 import { and, eq, gte } from "drizzle-orm";
 import { db } from "@/db";
 import { agencies, conversations, proposals, searches, waMessages } from "@/db/schema";
-import { normalizeProposal } from "./llm";
+import { normalizeProposal, detectContactInfoInImage } from "./llm";
 import { sendText, downloadMedia } from "./whatsapp";
 import { uploadMedia } from "./storage";
 import { normalizeWords, formatMoney } from "./text";
@@ -46,20 +46,30 @@ async function collectRecentImageIds(phone: string): Promise<string[]> {
     .slice(0, MAX_PHOTOS_PER_PROPOSAL);
 }
 
-/** Descarga y sube cada foto; una foto que falla se descarta y no bloquea el resto — son un nice-to-have, no el dato crítico de la propuesta. */
-async function downloadAndStorePhotos(mediaIds: string[]): Promise<string[]> {
+/**
+ * Descarga y sube cada foto; una foto que falla se descarta y no bloquea el
+ * resto — son un nice-to-have, no el dato crítico de la propuesta. De paso
+ * le pide a un LLM de visión que chequee si la foto muestra un dato de
+ * contacto (cartel, marca de agua) — no lo edita, solo junta avisos para
+ * que el admin los vea antes de publicar.
+ */
+async function downloadAndStorePhotos(mediaIds: string[]): Promise<{ urls: string[]; warnings: string[] }> {
   const urls: string[] = [];
+  const warnings: string[] = [];
   for (const mediaId of mediaIds) {
     try {
       const media = await downloadMedia(mediaId);
       if (!media) continue;
       const url = await uploadMedia(media.buffer, media.contentType, `proposals/${mediaId}`);
       urls.push(url);
+
+      const warning = await detectContactInfoInImage(media.buffer, media.contentType);
+      if (warning) warnings.push(warning);
     } catch (err) {
       console.error(`[agency-conversation] no se pudo procesar la foto ${mediaId}:`, err);
     }
   }
-  return urls;
+  return { urls, warnings };
 }
 
 const PASS_WORDS = new Set(["paso", "no", "nada", "gracias"]);
@@ -215,7 +225,7 @@ export async function handleAgencyMessage(phone: string, text: string): Promise<
   );
 
   const recentImageIds = await collectRecentImageIds(phone);
-  const photos = await downloadAndStorePhotos(recentImageIds);
+  const { urls: photos, warnings: photoWarnings } = await downloadAndStorePhotos(recentImageIds);
 
   await db.insert(proposals).values({
     searchId: search.id,
@@ -228,6 +238,7 @@ export async function handleAgencyMessage(phone: string, text: string): Promise<
     attributes,
     description: normalized.description,
     photos,
+    photoWarning: photoWarnings.length > 0 ? photoWarnings.join(" | ") : null,
     sourceRaw: { text },
     matchScore,
   });
