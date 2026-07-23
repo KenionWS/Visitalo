@@ -77,7 +77,7 @@ export default async function AgenciesPage() {
                 {a.status}
               </span>
               <Link href={`/admin/agencies/${a.id}`} className="text-sm text-[var(--verde-profundo)] underline">
-                Editar
+                Ver perfil
               </Link>
             </div>
           </li>
