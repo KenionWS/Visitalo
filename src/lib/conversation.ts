@@ -15,9 +15,11 @@ export type ConversationContext = {
   pendingQuestion?: string;
   pendingVisitId?: string;
   pendingVisitOptions?: string[];
+  pendingMarketingOptIn?: boolean;
 };
 
 type SearchRow = typeof searches.$inferSelect;
+type BuyerRow = typeof buyers.$inferSelect;
 
 const MAX_QUALIFYING_QUESTIONS = 4;
 
@@ -261,6 +263,7 @@ async function handleConfirming(
   conversationId: string,
   context: ConversationContext,
   search: SearchRow,
+  buyer: BuyerRow,
   phone: string,
   text: string
 ) {
@@ -270,12 +273,24 @@ async function handleConfirming(
       .set({ status: "active", updatedAt: new Date() })
       .where(eq(searches.id, search.id))
       .returning();
-    await setConversationState(conversationId, "ACTIVE", context);
     await sendText(
       phone,
       `Listo, tu búsqueda ya está activa. Vamos a avisarte apenas tengamos propuestas.\n\nMirá tu shortlist acá: ${shortlistUrl(activated.shortlistToken)}`
     );
     await enqueueJob("distribution.dispatch", { searchId: activated.id });
+
+    // Preguntamos el opt-in de marketing una sola vez por comprador, recién
+    // acá para no interrumpir el flujo de calificación con algo que no
+    // tiene que ver con encontrar la propiedad.
+    if (buyer.marketingOptIn === null) {
+      await sendText(
+        phone,
+        "Una última cosa: ¿querés que te avisemos por acá de novedades y promociones de Visitalo más adelante? Respondé sí o no."
+      );
+      await setConversationState(conversationId, "ACTIVE", { ...context, pendingMarketingOptIn: true });
+    } else {
+      await setConversationState(conversationId, "ACTIVE", context);
+    }
     return;
   }
 
@@ -292,6 +307,35 @@ async function handleActive(search: SearchRow, phone: string) {
     phone,
     `Tu búsqueda ya está activa. Mirá las propuestas y gestioná todo desde acá: ${shortlistUrl(search.shortlistToken)}`
   );
+}
+
+/** Recibe la respuesta al opt-in de marketing (una sola vez por comprador, ver handleConfirming). */
+async function handleMarketingOptInReply(
+  conversationId: string,
+  context: ConversationContext,
+  search: SearchRow,
+  buyerId: string,
+  phone: string,
+  text: string
+) {
+  const answer = parseYesNo(text);
+
+  await db.update(buyers).set({ marketingOptIn: answer === "yes" }).where(eq(buyers.id, buyerId));
+  await setConversationState(conversationId, "ACTIVE", { ...context, pendingMarketingOptIn: undefined });
+
+  if (answer === "yes") {
+    await sendText(phone, "¡Genial! Te vamos a avisar de novedades y promociones más adelante.");
+    return;
+  }
+  if (answer === "no") {
+    await sendText(phone, "Dale, no te vamos a mandar promociones.");
+    return;
+  }
+
+  // Ambiguo: no insistimos (para no trabar al comprador en un loop por algo
+  // secundario) — guardamos que no optó y respondemos su mensaje como uno
+  // normal en estado activo, por si en realidad estaba preguntando otra cosa.
+  await handleActive(search, phone);
 }
 
 /** Avisa al comprador que tiene una propuesta nueva publicada en su shortlist. */
@@ -332,6 +376,11 @@ export async function handleBuyerMessage(phone: string, text: string): Promise<v
     await setConversationState(conversation.id, conversation.state, context);
   }
 
+  if (context.pendingMarketingOptIn) {
+    await handleMarketingOptInReply(conversation.id, context, search, buyer.id, phone, text);
+    return;
+  }
+
   const isFirstTurn = conversation.state === "NEW";
 
   switch (conversation.state) {
@@ -340,7 +389,7 @@ export async function handleBuyerMessage(phone: string, text: string): Promise<v
       await handleQualifying(conversation.id, context, search, phone, text, isFirstTurn);
       break;
     case "CONFIRMING":
-      await handleConfirming(conversation.id, context, search, phone, text);
+      await handleConfirming(conversation.id, context, search, buyer, phone, text);
       break;
     case "ACTIVE":
       await handleActive(search, phone);

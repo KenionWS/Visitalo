@@ -19,6 +19,7 @@ export const buyers = pgTable("buyers", {
   phone: text("phone").notNull(),
   name: text("name"),
   status: text("status").notNull().default("active"),
+  marketingOptIn: boolean("marketing_opt_in"), // null = todavía no se le preguntó
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("buyers_phone_idx").on(table.phone),

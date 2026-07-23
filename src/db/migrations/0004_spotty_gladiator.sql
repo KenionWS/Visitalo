@@ -1,0 +1,1 @@
+ALTER TABLE "buyers" ADD COLUMN "marketing_opt_in" boolean;
