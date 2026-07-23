@@ -30,13 +30,31 @@ h3,
   font-weight: 800;
 }
 
-/* Sin esto, un tap impreciso en mobile (Safari sobre todo) se interpreta
-   como selección de texto en vez de click, y además hay un delay de ~300ms
-   antes de disparar el click mientras el navegador espera un posible
-   double-tap-to-zoom. */
-button {
-  touch-action: manipulation;
-  -webkit-user-select: none;
-  user-select: none;
-  min-height: 44px;
+/* En @layer base para que las utilities de Tailwind (ej. min-h-0 en los
+   controles chicos del carrusel de fotos) puedan pisar esto — una regla de
+   button sin @layer queda "por encima" de cualquier utility de Tailwind sin
+   importar la especificidad, por cómo funcionan las cascade layers. */
+@layer base {
+  /* Sin esto, un tap impreciso en mobile (Safari sobre todo) se interpreta
+     como selección de texto en vez de click, y además hay un delay de
+     ~300ms antes de disparar el click mientras el navegador espera un
+     posible double-tap-to-zoom. */
+  button {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    min-height: 44px;
+    /* Tailwind's reset pone cursor: default en <button> — sin esto no se ve
+       clickeable aunque funcione perfecto al tocarlo/clickearlo. */
+    cursor: pointer;
+    transition: filter 150ms ease;
+  }
+
+  button:hover:not(:disabled) {
+    filter: brightness(0.93);
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }

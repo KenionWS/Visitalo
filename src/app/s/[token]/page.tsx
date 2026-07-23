@@ -6,6 +6,7 @@ import { proposalEvents, proposals, relayThreads, searches, visits } from "@/db/
 import { formatMoney } from "@/lib/text";
 import { DiscardButton } from "./DiscardButton";
 import { FavoriteButton, RequestVisitButton, AskQuestionForm } from "./ActionButtons";
+import { PhotoCarousel } from "./PhotoCarousel";
 
 export const metadata: Metadata = {
   title: "Tu shortlist — visitalo.",
@@ -46,7 +47,7 @@ export default async function ShortlistPage({
   const proposalRows = await db
     .select()
     .from(proposals)
-    .where(and(eq(proposals.searchId, search.id), ne(proposals.status, "withdrawn")))
+    .where(and(eq(proposals.searchId, search.id), inArray(proposals.status, ["published", "discarded"])))
     .orderBy(desc(proposals.createdAt));
 
   const proposalIds = proposalRows.map((p) => p.id);
@@ -142,18 +143,7 @@ export default async function ShortlistPage({
                   key={proposal.id}
                   className="overflow-hidden rounded-2xl border border-[var(--tinta)]/10 bg-white shadow-sm"
                 >
-                  <div className="flex h-40 items-center justify-center bg-[var(--verde-claro)] text-[var(--verde-profundo)]">
-                    {proposal.photos[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={proposal.photos[0]}
-                        alt={proposal.zoneLabel ?? "Propiedad"}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="font-display text-lg">{proposal.zoneLabel ?? "Sin foto"}</span>
-                    )}
-                  </div>
+                  <PhotoCarousel photos={proposal.photos} alt={proposal.zoneLabel ?? "Sin foto"} />
 
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2">
