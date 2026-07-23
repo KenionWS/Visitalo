@@ -8,6 +8,7 @@ import { Card } from "@/components/admin/Card";
 import { Badge } from "@/components/admin/Badge";
 import { Button } from "@/components/admin/Button";
 import { EmptyState } from "@/components/admin/EmptyState";
+import { PhotoThumbnails } from "@/components/admin/PhotoThumbnails";
 import { approveProposal, rejectProposal, saveProposal } from "./actions";
 
 const inputClass =
@@ -75,19 +76,7 @@ export default async function ProposalsQueuePage() {
 
                   <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div>
-                      {proposal.photos.length > 0 && (
-                        <div className="mb-3 flex gap-2 overflow-x-auto">
-                          {proposal.photos.map((url) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={url}
-                              src={url}
-                              alt="Foto de la propiedad"
-                              className="h-24 w-24 flex-shrink-0 rounded-xl object-cover"
-                            />
-                          ))}
-                        </div>
-                      )}
+                      <PhotoThumbnails photos={proposal.photos} alt="Foto de la propiedad" />
                       <p className="text-xs font-semibold uppercase tracking-wider text-[var(--tinta)]/40">
                         Mensaje original
                       </p>

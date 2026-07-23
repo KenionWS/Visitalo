@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Lightbox } from "@/components/Lightbox";
 
 export function PhotoCarousel({ photos, alt }: { photos: string[]; alt: string }) {
   const [index, setIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   if (photos.length === 0) {
     return (
@@ -16,7 +18,12 @@ export function PhotoCarousel({ photos, alt }: { photos: string[]; alt: string }
   return (
     <div className="relative h-40 w-full overflow-hidden bg-[var(--verde-claro)]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={photos[index]} alt={alt} className="h-full w-full object-cover" />
+      <img
+        src={photos[index]}
+        alt={alt}
+        className="h-full w-full cursor-zoom-in object-cover"
+        onClick={() => setLightboxOpen(true)}
+      />
 
       {photos.length > 1 && (
         <>
@@ -52,6 +59,8 @@ export function PhotoCarousel({ photos, alt }: { photos: string[]; alt: string }
           </div>
         </>
       )}
+
+      {lightboxOpen && <Lightbox photos={photos} index={index} onClose={() => setLightboxOpen(false)} />}
     </div>
   );
 }

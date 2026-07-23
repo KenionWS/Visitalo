@@ -27,6 +27,12 @@ const CONFIRM_WORDS = new Set([
 
 const REJECT_WORDS = new Set(["no", "nel", "incorrecto", "cambiar", "corregir"]);
 
+/** URL pública de la shortlist de una búsqueda — compartida por conversation.ts y relay.ts. */
+export function shortlistUrl(token: string): string {
+  const base = process.env.APP_URL ?? "http://localhost:3000";
+  return `${base}/s/${token}`;
+}
+
 /** Formatea un monto según la moneda habitual de la operación: USD para venta, ARS para alquiler (mercado argentino). */
 export function formatMoney(amount: number | null, operation: string | null): string {
   if (amount == null) return "sin especificar";

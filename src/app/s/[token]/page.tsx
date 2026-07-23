@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import Link from "next/link";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { proposalEvents, proposals, relayThreads, searches, visits } from "@/db/schema";
@@ -34,12 +35,29 @@ function formatAttributeLabel(key: string): string {
   return key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 }
 
+const SORT_OPTIONS = {
+  recent: { label: "Más nuevas", orderBy: desc(proposals.createdAt) },
+  match: { label: "Mejor match", orderBy: desc(proposals.matchScore) },
+  price_asc: { label: "Precio: menor a mayor", orderBy: asc(proposals.price) },
+  price_desc: { label: "Precio: mayor a menor", orderBy: desc(proposals.price) },
+} as const;
+
+type SortKey = keyof typeof SORT_OPTIONS;
+
+function isSortKey(value: string | undefined): value is SortKey {
+  return Boolean(value && value in SORT_OPTIONS);
+}
+
 export default async function ShortlistPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ sort?: string }>;
 }) {
   const { token } = await params;
+  const { sort: sortParam } = await searchParams;
+  const sort: SortKey = isSortKey(sortParam) ? sortParam : "recent";
 
   const [search] = await db.select().from(searches).where(eq(searches.shortlistToken, token)).limit(1);
   if (!search) notFound();
@@ -48,7 +66,7 @@ export default async function ShortlistPage({
     .select()
     .from(proposals)
     .where(and(eq(proposals.searchId, search.id), inArray(proposals.status, ["published", "discarded"])))
-    .orderBy(desc(proposals.createdAt));
+    .orderBy(SORT_OPTIONS[sort].orderBy);
 
   const proposalIds = proposalRows.map((p) => p.id);
   const events =
@@ -131,7 +149,27 @@ export default async function ShortlistPage({
             Todavía no tenés propuestas. Te avisamos por WhatsApp apenas llegue la primera.
           </p>
         ) : (
-          <ul className="space-y-4">
+          <>
+            {publishedProposals.length > 1 && (
+              <div className="mb-4 flex flex-wrap gap-1.5">
+                {(Object.entries(SORT_OPTIONS) as [SortKey, (typeof SORT_OPTIONS)[SortKey]][]).map(
+                  ([key, opt]) => (
+                    <Link
+                      key={key}
+                      href={key === "recent" ? `/s/${token}` : `/s/${token}?sort=${key}`}
+                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                        sort === key
+                          ? "border-[var(--verde)] bg-[var(--verde-claro)] font-medium text-[var(--verde-profundo)]"
+                          : "border-[var(--tinta)]/15 text-[var(--tinta)]/60"
+                      }`}
+                    >
+                      {opt.label}
+                    </Link>
+                  )
+                )}
+              </div>
+            )}
+            <ul className="space-y-4">
             {publishedProposals.map((proposal) => {
               const favorited = favoritedByProposal.get(proposal.id) ?? false;
               const attributeChips = Object.entries(
@@ -213,7 +251,8 @@ export default async function ShortlistPage({
                 </li>
               );
             })}
-          </ul>
+            </ul>
+          </>
         )}
 
         {discardedProposals.length > 0 && (

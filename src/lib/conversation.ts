@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { buyers, conversations, searches } from "@/db/schema";
 import { extractSearchFields, type SearchFields } from "./llm";
 import { sendText, sendTextOrTemplate } from "./whatsapp";
-import { parseYesNo, formatMoney } from "./text";
+import { parseYesNo, formatMoney, shortlistUrl } from "./text";
 import { enqueueJob } from "./queue";
 import { handleBuyerVisitConfirmReply } from "./visits";
 
@@ -170,11 +170,6 @@ function buildSummary(search: SearchRow): string {
   }
   lines.push("", "¿Confirmás? Respondé sí o no.");
   return lines.join("\n");
-}
-
-function shortlistUrl(token: string): string {
-  const base = process.env.APP_URL ?? "http://localhost:3000";
-  return `${base}/s/${token}`;
 }
 
 async function setConversationState(

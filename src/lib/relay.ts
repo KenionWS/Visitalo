@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { agencies, buyers, conversations, proposals, relayThreads, searches } from "@/db/schema";
 import { redactRelayMessage } from "./llm";
 import { sendText } from "./whatsapp";
-import { stripLikelyContactInfo } from "./text";
+import { stripLikelyContactInfo, shortlistUrl } from "./text";
 
 /**
  * Módulo hoja: no importa conversation.ts ni agency-conversation.ts para
@@ -28,7 +28,7 @@ async function getRelayThreadDetails(relayThreadId: string) {
   const [buyer] = await db.select().from(buyers).where(eq(buyers.id, search.buyerId)).limit(1);
   if (!buyer) return null;
 
-  return { thread, proposal, agency, buyer };
+  return { thread, proposal, agency, buyer, search };
 }
 
 async function getOrCreateAgencyConversation(phone: string) {
@@ -96,13 +96,14 @@ export async function handleAgencyRelayAnswer(
       .where(eq(conversations.id, conversationId));
     return;
   }
-  const { thread, agency, buyer } = details;
+  const { thread, agency, buyer, search } = details;
+  const link = shortlistUrl(search.shortlistToken);
 
   // Ya se había redactado y guardado la respuesta en un intento anterior que
   // falló recién al avisarle al comprador — no volvemos a llamar al LLM,
   // solo reintentamos el envío con lo que ya quedó guardado.
   if (thread.status === "answered" && thread.answer) {
-    await sendText(buyer.phone, `Te respondieron tu pregunta:\n\n"${thread.answer}"`);
+    await sendText(buyer.phone, `Te respondieron tu pregunta:\n\n"${thread.answer}"\n\nMirá tu shortlist acá: ${link}`);
     await db
       .update(conversations)
       .set({ context: { ...context, pendingRelayThreadId: undefined }, updatedAt: new Date() })
@@ -127,7 +128,7 @@ export async function handleAgencyRelayAnswer(
     .set({ answer: redacted, status: "answered", answeredAt: new Date() })
     .where(eq(relayThreads.id, thread.id));
 
-  await sendText(buyer.phone, `Te respondieron tu pregunta:\n\n"${redacted}"`);
+  await sendText(buyer.phone, `Te respondieron tu pregunta:\n\n"${redacted}"\n\nMirá tu shortlist acá: ${link}`);
 
   await db
     .update(conversations)
