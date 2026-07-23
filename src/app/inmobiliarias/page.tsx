@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Inbox, Send, CalendarClock, CheckCircle2, Ban, Gift } from "lucide-react";
+import { MessageCircle, ClipboardCheck, Inbox, Send, CheckCircle2 } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { ScrollySteps } from "@/components/ScrollySteps";
 import { Faq } from "@/components/Faq";
@@ -17,31 +17,70 @@ const ICON_PROPS = { size: 22, strokeWidth: 2 } as const;
 
 const STEPS: Step[] = [
   {
+    icon: <MessageCircle {...ICON_PROPS} />,
+    title: "El comprador escribe",
+    body: "Por WhatsApp, texto libre: qué busca, en qué zona y con qué presupuesto.",
+  },
+  {
+    icon: <ClipboardCheck {...ICON_PROPS} />,
+    title: "Visitalo lo califica",
+    body: "Forma de pago, si tiene crédito preaprobado, plazos y qué características le importan — antes de que te llegue a vos.",
+  },
+  {
     icon: <Inbox {...ICON_PROPS} />,
-    title: "Te llega una búsqueda activa de tu zona",
-    body: "Una ficha anónima con zona, presupuesto y qué tipo de propiedad busca — sin nombre ni teléfono del comprador todavía.",
+    title: "Te llega la ficha",
+    body: "Perfil anónimo del comprador, filtrado por tu zona. Sin nombre ni teléfono todavía.",
   },
   {
     icon: <Send {...ICON_PROPS} />,
-    title: "Respondés con lo que tenés",
-    body: "Precio, m², ambientes, fotos y características, todo por WhatsApp — el mismo canal que ya usás, sin entrar a ningún sistema nuevo. Si no tenés nada para esa búsqueda, respondés \"paso\" y listo.",
-  },
-  {
-    icon: <CalendarClock {...ICON_PROPS} />,
-    title: "Coordinás la visita",
-    body: "Si al comprador le interesa, te pide coordinar. Le ofrecés 2 o 3 horarios que te queden bien y él elige el que más le sirve.",
+    title: "Vos proponés",
+    body: "Precio, fotos y características de lo que tenés, todo por WhatsApp. Si no tenés nada, respondés \"paso\" y listo.",
   },
   {
     icon: <CheckCircle2 {...ICON_PROPS} />,
-    title: "Se concreta y ahí se comparten los contactos",
-    body: "Recién cuando la visita queda confirmada se intercambian los datos de contacto entre vos y el comprador para coordinar la dirección exacta.",
+    title: "Visita agendada",
+    body: "El comprador elige tu propuesta y pide visita. Recién ahí se desbloquea el contacto entre las dos partes.",
   },
 ];
 
-const PRICING_POINTS = [
-  { icon: Gift, text: "Publicar y recibir búsquedas no tiene costo — nunca pagás por aparecer." },
-  { icon: Ban, text: "No se cobra por lead ni por pregunta respondida." },
-  { icon: CheckCircle2, text: "Solo se descuenta un crédito cuando una visita se confirma de verdad." },
+const PROBLEM = {
+  antes: [
+    "Pagar destacados y esperar, sin saber si hay compradores reales del otro lado",
+    "Responder curiosos que preguntan precio y desaparecen",
+    "Stock que lleva meses publicado sin una sola visita",
+    "Cargar la misma ficha en tres portales distintos",
+  ],
+  ahora: [
+    "Te llegan compradores activos, ya calificados por zona y presupuesto",
+    "Vos elegís qué búsquedas responder — sin obligación",
+    "Una vía más para mover el stock que no se estaba moviendo",
+    "Todo por el WhatsApp que ya usás, nada nuevo que cargar",
+  ],
+};
+
+const GAINS = {
+  inmobiliaria: [
+    "Compradores activos, con presupuesto y forma de pago ya declarados — no clics sueltos.",
+    "Una salida más para el stock que lleva tiempo publicado sin movimiento.",
+    "Vas a ver, búsqueda por búsqueda, cuánta demanda real hay en tus zonas.",
+    "Opera 100% por WhatsApp — sin paneles ni carga de datos obligatoria.",
+  ],
+  comprador: [
+    "Cuenta una vez lo que busca y recibe propuestas que responden a eso.",
+    "Compara precio, m² y ambientes de cada propuesta, lado a lado.",
+    "Accede a propiedades que quizás nunca vería en los portales.",
+    "Su teléfono no circula: se comparte recién al pedir visita.",
+  ],
+};
+
+const PRICING_CARDS = [
+  { title: "Recibir búsquedas", body: "Gratis, siempre. La demanda calificada es el activo — nunca se cobra por aparecer." },
+  { title: "Proponer", body: "Gratis, siempre. Cuantas más propuestas mandás, mejor shortlist arma el comprador." },
+  {
+    title: "Visita agendada",
+    body: "Ahí sí se descuenta un crédito — contacto desbloqueado y coordinación. Las primeras 5 son gratis.",
+    highlight: true,
+  },
 ];
 
 const FAQ_ITEMS = [
@@ -57,7 +96,7 @@ export default function InmobiliariasPage() {
     <div className="flex flex-1 flex-col">
       <header className="bg-[var(--verde-profundo)] px-5 py-16 text-white sm:py-24">
         <div className="mx-auto max-w-2xl text-center">
-          <Link href="/" className="font-display text-xl">
+          <Link href="/" className="font-display text-2xl sm:text-3xl">
             visitalo<span className="text-[var(--ambar)]">.</span>
           </Link>
           <h1 className="mt-6 font-display text-4xl leading-tight sm:text-5xl">
@@ -77,6 +116,51 @@ export default function InmobiliariasPage() {
       </header>
 
       <main className="flex-1">
+        <section className="px-5 py-16 sm:py-24">
+          <div className="mx-auto max-w-4xl">
+            <Reveal className="text-center">
+              <h2 className="font-display text-2xl text-[var(--tinta)] sm:text-3xl">
+                Los portales muestran avisos, no compradores
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-[var(--tinta)]/65">
+                Una inmobiliaria con stock clavado paga destacados y espera. Del otro lado, alguien scrollea
+                cientos de avisos repetidos y no encuentra con quién hablar. Visitalo conecta esa demanda
+                calificada con la oferta que la necesita.
+              </p>
+            </Reveal>
+            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Reveal>
+                <div className="h-full rounded-2xl border border-[var(--tinta)]/10 bg-white p-6">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--tinta)]/40">Antes</p>
+                  <ul className="mt-3 space-y-2.5">
+                    {PROBLEM.antes.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-[var(--tinta)]/70">
+                        <span className="mt-0.5 text-[var(--tinta)]/30">✕</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Reveal>
+              <Reveal delay={120}>
+                <div className="h-full rounded-2xl border border-[var(--verde)]/30 bg-[var(--verde-claro)] p-6">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--verde-profundo)]/60">
+                    Con Visitalo
+                  </p>
+                  <ul className="mt-3 space-y-2.5">
+                    {PROBLEM.ahora.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-[var(--verde-profundo)]">
+                        <span className="mt-0.5">✓</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
         <section className="bg-[var(--fondo)] px-5 py-16 sm:py-24">
           <div className="mx-auto max-w-3xl">
             <Reveal>
@@ -99,26 +183,74 @@ export default function InmobiliariasPage() {
         </section>
 
         <section className="px-5 py-16 sm:py-24">
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto max-w-4xl">
             <Reveal className="text-center">
-              <h2 className="font-display text-2xl text-[var(--tinta)] sm:text-3xl">Un modelo simple</h2>
+              <h2 className="font-display text-2xl text-[var(--tinta)] sm:text-3xl">Qué gana cada lado</h2>
             </Reveal>
-            <div className="mt-10 space-y-3">
-              {PRICING_POINTS.map((point, i) => {
-                const Icon = point.icon;
-                return (
-                  <Reveal key={point.text} delay={i * 100}>
-                    <div className="flex items-center gap-4 rounded-2xl border border-[var(--tinta)]/10 bg-white p-5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--verde-claro)] text-[var(--verde-profundo)]">
-                        <Icon size={20} strokeWidth={2} />
-                      </div>
-                      <p className="text-sm text-[var(--tinta)]/80">{point.text}</p>
-                    </div>
-                  </Reveal>
-                );
-              })}
+            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Reveal>
+                <div className="h-full rounded-2xl border border-[var(--verde)]/30 bg-[var(--verde-claro)] p-6">
+                  <p className="font-medium text-[var(--verde-profundo)]">La inmobiliaria</p>
+                  <ul className="mt-3 space-y-2.5">
+                    {GAINS.inmobiliaria.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-[var(--verde-profundo)]">
+                        <span className="mt-0.5">✓</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Reveal>
+              <Reveal delay={120}>
+                <div className="h-full rounded-2xl border border-[var(--tinta)]/10 bg-white p-6">
+                  <p className="font-medium text-[var(--tinta)]">El comprador</p>
+                  <ul className="mt-3 space-y-2.5">
+                    {GAINS.comprador.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-[var(--tinta)]/70">
+                        <span className="mt-0.5 text-[var(--verde)]">✓</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Reveal>
             </div>
           </div>
+        </section>
+
+        <section className="bg-[var(--fondo)] px-5 py-16 sm:py-24">
+          <div className="mx-auto max-w-4xl">
+            <Reveal className="text-center">
+              <h2 className="font-display text-2xl text-[var(--tinta)] sm:text-3xl">El modelo, sin letra chica</h2>
+            </Reveal>
+            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {PRICING_CARDS.map((card, i) => (
+                <Reveal key={card.title} delay={i * 100}>
+                  <div
+                    className={`h-full rounded-2xl border p-6 ${
+                      card.highlight
+                        ? "border-[var(--ambar)]/40 bg-[var(--ambar)]/10"
+                        : "border-[var(--tinta)]/10 bg-white"
+                    }`}
+                  >
+                    <p className="font-medium text-[var(--tinta)]">{card.title}</p>
+                    <p className="mt-2 text-sm text-[var(--tinta)]/65">{card.body}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-5 py-16 sm:py-24">
+          <Reveal className="mx-auto max-w-2xl text-center">
+            <h2 className="font-display text-2xl text-[var(--tinta)] sm:text-3xl">Por qué ahora</h2>
+            <p className="mt-4 text-[var(--tinta)]/65">
+              El crédito hipotecario volvió y trae compradores con financiación preaprobada — un lead calificado
+              así vale más que un mes de destacados. Arrancamos con un piloto acotado a barrios seleccionados de
+              CABA, sin permanencia: sumarte no te compromete a nada.
+            </p>
+          </Reveal>
         </section>
 
         <section className="bg-[var(--fondo)] px-5 py-16 sm:py-24">

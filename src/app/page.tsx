@@ -98,7 +98,7 @@ export default function Home() {
     <div className="flex flex-1 flex-col">
       <header className="bg-[var(--verde-profundo)] px-5 py-16 text-white sm:py-24">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="font-display text-xl">
+          <p className="font-display text-2xl sm:text-3xl">
             visitalo<span className="text-[var(--ambar)]">.</span>
           </p>
           <h1 className="mt-6 font-display text-4xl leading-tight sm:text-5xl">
